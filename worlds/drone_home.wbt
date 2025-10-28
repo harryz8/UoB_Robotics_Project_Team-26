@@ -1,16 +1,32 @@
 #VRML_SIM R2025a utf8
+
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/floors/protos/RectangleArena.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/dji/mavic/protos/Mavic2Pro.proto"
+
 WorldInfo {
 }
 Viewpoint {
-  orientation -0.5773 0.5773 0.5773 2.0944
-  position 0 0 10
+  orientation -0.5407929357652023 0.48986327747623293 0.6837960002856822 2.0324750512527165
+  position -0.3288234625320258 -0.7613122859997334 2.9955648235990315
 }
 TexturedBackground {
 }
 TexturedBackgroundLight {
 }
 RectangleArena {
+}
+Mavic2Pro {
+  hidden position_0_0 -5.359822939301084e-09
+  hidden position_6_0 -1.510693790412828e-07
+  hidden rotation_7 0 -1 0 1.5196262340524156e-07
+  hidden position_7_0 -3.3525993236621556e-07
+  hidden rotation_8 -1 0 0 3.3585511653377587e-07
+  translation -0.00853644 -7.4165e-07 0.115467
+  rotation 9.738519209094954e-05 -0.9999999930165234 -6.695578395885745e-05 0.07003891022232563
+  bodySlot [
+    Lidar {
+    }
+  ]
 }
