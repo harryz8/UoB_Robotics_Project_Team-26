@@ -6,7 +6,7 @@ from mapping import Mapping
 from controller import Robot
 from controller import Keyboard
 
-BLOCK_LENGTH = 350 #mm
+BLOCK_LENGTH : int = 350 #mm
 
 # create the Robot instance.
 robot = Robot()
@@ -19,7 +19,7 @@ keyboard=Keyboard()
 keyboard.enable(timestep)
 
 # create the map
-mapping = Mapping(BLOCK_LENGTH)
+mapping : Mapping = Mapping(BLOCK_LENGTH)
 
 # You should insert a getDevice-like function in order to get the
 # instance of a device of the robot. Something like:
