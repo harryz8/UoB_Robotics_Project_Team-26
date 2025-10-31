@@ -1,5 +1,5 @@
-from mapping import Mapping
 """drone_controller controller."""
+from mapping import Mapping
 
 # You may need to import some classes of the controller module. Ex:
 #  from controller import Robot, Motor, DistanceSensor
@@ -27,15 +27,18 @@ mapping : Mapping = Mapping(BLOCK_LENGTH)
 #  ds = robot.getDevice('dsname')
 #  ds.enable(timestep)
 
+# getting all motors
 motors = []
 motors.append(robot.getDevice("front left propeller"))
 motors.append(robot.getDevice("front right propeller"))
 motors.append(robot.getDevice("rear left propeller"))
 motors.append(robot.getDevice("rear right propeller"))
 
+# getting camera device
 camera = robot.getDevice("camera")
 camera.enable(timestep)
 
+# getting lidar device
 lidar = robot.getDevice("lidar")
 lidar.enable(timestep)
 lidar.enablePointCloud()
