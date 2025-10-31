@@ -6,7 +6,8 @@ from mapping import Mapping
 from controller import Robot
 from controller import Keyboard
 
-BLOCK_LENGTH : int = 350 #mm
+BLOCK_LENGTH : float = 350 #mm
+ROBOT_SIZE : int = 1 #block
 
 # create the Robot instance.
 robot = Robot()
@@ -17,9 +18,6 @@ timestep = int(robot.getBasicTimeStep())
 # create keyboard instance
 keyboard=Keyboard()
 keyboard.enable(timestep)
-
-# create the map
-mapping : Mapping = Mapping(BLOCK_LENGTH)
 
 # You should insert a getDevice-like function in order to get the
 # instance of a device of the robot. Something like:
@@ -43,10 +41,15 @@ lidar = robot.getDevice("lidar")
 lidar.enable(timestep)
 lidar.enablePointCloud()
 
+# create the map
+mapping : Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, lidar)
+
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
     key=keyboard.getKey()
+    mapping.update()
+
     if (key == "w"):
         pass
         #go forward
