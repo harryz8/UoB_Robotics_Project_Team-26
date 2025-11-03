@@ -6,8 +6,8 @@ from mapping import Mapping
 from controller import Robot
 from controller import Keyboard
 
-BLOCK_LENGTH : float = 350 #mm
-ROBOT_SIZE : int = 1 #block
+BLOCK_LENGTH: float = 350  #mm
+ROBOT_SIZE: int = 1  #block
 
 # create the Robot instance.
 robot = Robot()
@@ -16,7 +16,7 @@ robot = Robot()
 timestep = int(robot.getBasicTimeStep())
 
 # create keyboard instance
-keyboard=Keyboard()
+keyboard = Keyboard()
 keyboard.enable(timestep)
 
 # You should insert a getDevice-like function in order to get the
@@ -26,11 +26,8 @@ keyboard.enable(timestep)
 #  ds.enable(timestep)
 
 # getting all motors
-motors = []
-motors.append(robot.getDevice("front left propeller"))
-motors.append(robot.getDevice("front right propeller"))
-motors.append(robot.getDevice("rear left propeller"))
-motors.append(robot.getDevice("rear right propeller"))
+motors = [robot.getDevice("front left propeller"), robot.getDevice("front right propeller"),
+          robot.getDevice("rear left propeller"), robot.getDevice("rear right propeller")]
 
 # getting camera device
 camera = robot.getDevice("camera")
@@ -42,12 +39,12 @@ lidar.enable(timestep)
 lidar.enablePointCloud()
 
 # create the map
-mapping : Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, lidar)
+mapping: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, lidar)
 
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-    key=keyboard.getKey()
+    key = keyboard.getKey()
     mapping.update()
 
     if (key == "w"):
@@ -57,7 +54,7 @@ while robot.step(timestep) != -1:
     elif (key == "r"):
         pass
         # Ben
-        
+
     #localisation -> mapping -> databse of map
     pass
 
