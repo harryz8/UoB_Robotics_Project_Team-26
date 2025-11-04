@@ -1,6 +1,7 @@
 """drone_controller controller."""
 from mapping import Mapping
 from path_planner import Path_Planner
+import numpy as np
 
 # You may need to import some classes of the controller module. Ex:
 #  from controller import Robot, Motor, DistanceSensor
@@ -22,7 +23,6 @@ keyboard.enable(timestep)
 
 path_planner : Path_Planner = Path_Planner()
 
->>>>>>> main
 # You should insert a getDevice-like function in order to get the
 # instance of a device of the robot. Something like:
 #  motor = robot.getDevice('motorname')
@@ -48,9 +48,9 @@ mapping: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, lidar)
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-<<<<<<< HEAD
     key = keyboard.getKey()
-    mapping.update()
+    mapping.update([0,0], np.array([0,0,0]))
+    print(mapping.get())
     if (key == ord("W")):
         pass
         #go forward
