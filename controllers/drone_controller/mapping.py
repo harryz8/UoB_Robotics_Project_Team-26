@@ -27,13 +27,10 @@ class Mapping:
         map_shape = self._map.shape
         self.start_cell = self.start_cell + (np.array(self._map.shape) - np.maximum(np.array(map_shape), np.array(coords))) - (np.zeros(3) + np.minimum(np.zeros(3), np.array(coords)))
         self._map = np.pad(self._map, pad_width=(
-        (abs(min(0, coords[0])), max(map_shape[0], coords[0])),
-        (abs(min(0, coords[1])), max(map_shape[1], coords[1])),
-        (abs(min(0, coords[2])), max(map_shape[2], coords[2]))), 
+        (abs(min(0, coords[0])), max(0, coords[0]-map_shape[0])),
+        (abs(min(0, coords[1])), max(0, coords[1]-map_shape[1])),
+        (abs(min(0, coords[2])), max(0, coords[2]-map_shape[2]))), 
         mode = 'constant', constant_values = 1)
-        print(coords)
-        print(f"({abs(min(0, coords[0]))}, {max(map_shape[0], coords[0])}), ({abs(min(0, coords[1]))}, {max(map_shape[1], coords[1])}), ({abs(min(0, coords[2]))}, {max(map_shape[2], coords[2])})")
-        print(self._map.shape)
         return self.start_cell - prev_start
 
     def update(self, xy_heading: tuple[int, int], robot_loc):
@@ -42,8 +39,10 @@ class Mapping:
         diff_loc = robot_loc - self.start_cell
         new_blocks_max_dist: int = math.ceil(self.lidar.getMaxRange() / self.block_length)
         new_blocks: list[tuple[int, int, int]] = [(x,y,z) for x in range(robot_loc[0]-new_blocks_max_dist, robot_loc[0]+new_blocks_max_dist+1) for y in range(robot_loc[1]-new_blocks_max_dist, robot_loc[1]+new_blocks_max_dist+1) for z in range(robot_loc[2]-new_blocks_max_dist, robot_loc[2]+new_blocks_max_dist+1)]
+        self.start_cell_copy = self.start_cell.copy()
         for new_block in new_blocks:
-            self._extend_to(new_block)
+            diff_start = self.start_cell - self.start_cell_copy
+            self._extend_to((new_block[0]+diff_start[0],new_block[1]+diff_start[1],new_block[2]+diff_start[2]))
             robot_loc = robot_loc + diff_loc
         # get lidar values
         max_dist = self.lidar.getMaxRange() // self.block_length
