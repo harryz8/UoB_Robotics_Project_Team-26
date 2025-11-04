@@ -2,3 +2,5 @@
 .git
 ./controllers/drone_controller/__pycache__/*
 ./controllers/drone_controller/venv/*
+__pycache__/
+*.pyc
