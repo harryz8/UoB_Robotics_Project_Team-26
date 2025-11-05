@@ -2,6 +2,7 @@
 from mapping import Mapping
 from path_planner import Path_Planner
 import numpy as np
+import math
 
 # You may need to import some classes of the controller module. Ex:
 #  from controller import Robot, Motor, DistanceSensor
@@ -40,7 +41,7 @@ camera.enable(timestep)
 # getting lidar device
 lidar = robot.getDevice("lidar")
 lidar.enable(timestep)
-lidar.enablePointCloud()
+# lidar.enablePointCloud()
 
 # create the map
 mapping: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, lidar)
@@ -49,8 +50,9 @@ mapping: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, lidar)
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
     key = keyboard.getKey()
-    mapping.update([0,0], np.array([0,0,0]))
+    mapping.update(0, np.array([0,0,0]))
     print(mapping.get())
+    print(mapping.get().shape)
     if (key == ord("W")):
         pass
         #go forward
