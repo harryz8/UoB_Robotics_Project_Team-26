@@ -13,7 +13,7 @@ def _angle_calc_arr(robot_loc_meters: np.ndarray,
                     block_length_meters: float,
                     axes: tuple[int, int] = (0, 1)
                     ) -> np.ndarray:
-    # calculates angle from x-axis for vector between these two points
+    # calculates angle from x-axis for vector between these two points when spec_loc_blocks is an np.ndarray and robot_loc is in meters not blocks
     lengths = spec_loc_blocks - (robot_loc_meters / block_length_meters)
     return np.arctan2([lengths[:, axes[1]]], [lengths[:, axes[0]]])
 
@@ -36,7 +36,7 @@ class Mapping:
     """
 
     _map = np.ones((1, 1, 1), dtype='float64')
-    origin = np.array([0, 0, 0])
+    origin = np.array([0, 0, 0])  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
 
     def __init__(self, block_length_mm: float, robot_size_blocks: int):
         self.block_length = block_length_mm / 1000
@@ -57,9 +57,9 @@ class Mapping:
 
     def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
         new_blocks_max_dist: int = math.ceil(radius / self.block_length)
-        new_blocks: list[tuple[int, int, int]] = [(x, y, z) for x in range(
-            robot_map_index[0].astype("i") - new_blocks_max_dist,
-            robot_map_index[0].astype("i") + new_blocks_max_dist + 1)
+        new_blocks: list[tuple[int, int, int]] = [(x, y, z)
+                                                  for x in range(robot_map_index[0].astype("i") - new_blocks_max_dist,
+                                                                 robot_map_index[0].astype("i") + new_blocks_max_dist + 1)
                                                   for y in range(robot_map_index[1].astype("i") - new_blocks_max_dist,
                                                                  robot_map_index[1].astype("i") + new_blocks_max_dist + 1)
                                                   for z in range(robot_map_index[2].astype("i") - new_blocks_max_dist,
