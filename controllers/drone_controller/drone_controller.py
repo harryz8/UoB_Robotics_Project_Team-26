@@ -22,7 +22,7 @@ timestep = int(robot.getBasicTimeStep())
 keyboard = Keyboard()
 keyboard.enable(timestep)
 
-path_planner : Path_Planner = Path_Planner()
+path_planner: Path_Planner = Path_Planner()
 
 # You should insert a getDevice-like function in order to get the
 # instance of a device of the robot. Something like:
@@ -44,23 +44,30 @@ lidar.enable(timestep)
 # lidar.enablePointCloud()
 
 # create the map
-mapping: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, lidar)
+mapping: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
+
+# for debugging
+loops = 0
+prints = 10
 
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
     key = keyboard.getKey()
-    mapping.update(0, np.array([0,0,0]))
-    print(mapping.get())
-    print(mapping.get().shape)
-    if (key == ord("W")):
+    mapping.update(0, np.array([0, 0, 0]), lidar, lidar_axis=(0, 1))
+    if key == ord("W"):
         pass
         #go forward
     #...
-    elif (key == ord("R")):
+    elif key == ord("R"):
         print(path_planner.test())
         pass
         # Ben
+    # For debugging
+    if (prints > 0) and (loops % prints == 0):
+        print(mapping.get())
+        print(mapping.get().shape)
+    loops += 1
 
     #localisation -> mapping -> databse of map
     pass
