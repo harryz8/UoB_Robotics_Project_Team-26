@@ -35,17 +35,17 @@ class Mapping:
     Occupancy grid map
     """
 
-    _map = np.ones((1, 1, 1), dtype='f')
-    start_cell = np.array([0, 0, 0])
+    _map = np.ones((1, 1, 1), dtype='float64')
+    origin = np.array([0, 0, 0])
 
     def __init__(self, block_length_mm: float, robot_size_blocks: int):
         self.block_length = block_length_mm / 1000
         self.robot_size_blocks = robot_size_blocks
 
     def _extend_to(self, coords: tuple[int, int, int]) -> np.ndarray:
-        prev_start = self.start_cell.copy()
+        prev_start = self.origin.copy()
         map_shape = (self._map.shape - np.ones(3)).astype('i')
-        self.start_cell = self.start_cell + (map_shape - np.maximum(map_shape, np.array(coords))) - (
+        self.origin = self.origin + (map_shape - np.maximum(map_shape, np.array(coords))) - (
                 np.zeros(3) + np.minimum(np.zeros(3), np.array(coords)))
         # print(f"({abs(min(0, coords[0]))}, {max(0, coords[0]-map_shape[0])}), ({abs(min(0, coords[1]))}, {max(0, coords[1]-map_shape[1])}), ({abs(min(0, coords[2]))}, {max(0, coords[2]-map_shape[2])})")
         self._map = np.pad(self._map, pad_width=(
@@ -53,17 +53,17 @@ class Mapping:
             (abs(min(0, coords[1])), max(0, coords[1] - map_shape[1])),
             (abs(min(0, coords[2])), max(0, coords[2] - map_shape[2]))),
                            mode='constant', constant_values=1)
-        return self.start_cell - prev_start
+        return self.origin - prev_start
 
-    def initialise_blocks_in_range(self, robot_loc_blocks: np.ndarray, radius: float) -> np.ndarray:
+    def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
         new_blocks_max_dist: int = math.ceil(radius / self.block_length)
         new_blocks: list[tuple[int, int, int]] = [(x, y, z) for x in range(
-            robot_loc_blocks[0].astype("i") - new_blocks_max_dist,
-            robot_loc_blocks[0].astype("i") + new_blocks_max_dist + 1)
-                                                  for y in range(robot_loc_blocks[1].astype("i") - new_blocks_max_dist,
-                                                                 robot_loc_blocks[1].astype("i") + new_blocks_max_dist + 1)
-                                                  for z in range(robot_loc_blocks[2].astype("i") - new_blocks_max_dist,
-                                                                 robot_loc_blocks[2].astype("i") + new_blocks_max_dist + 1)]
+            robot_map_index[0].astype("i") - new_blocks_max_dist,
+            robot_map_index[0].astype("i") + new_blocks_max_dist + 1)
+                                                  for y in range(robot_map_index[1].astype("i") - new_blocks_max_dist,
+                                                                 robot_map_index[1].astype("i") + new_blocks_max_dist + 1)
+                                                  for z in range(robot_map_index[2].astype("i") - new_blocks_max_dist,
+                                                                 robot_map_index[2].astype("i") + new_blocks_max_dist + 1)]
         change_vec = np.zeros(3)
         for new_block in new_blocks:
             if not ((new_block[0] + change_vec[0] < self._map.shape[0]) and (
@@ -74,8 +74,8 @@ class Mapping:
                 change_vec = change_vec + self._extend_to((int(new_block[0] + change_vec[0]),
                                                            int(new_block[1] + change_vec[1]),
                                                            int(new_block[2] + change_vec[2])))
-        robot_loc_blocks = (robot_loc_blocks + change_vec).astype("i")
-        return robot_loc_blocks
+        robot_map_index = (robot_map_index + change_vec).astype("i")
+        return robot_map_index
 
     def update(self, heading_angle: float, robot_loc: np.ndarray, lidar, lidar_axis: tuple[int, int] = (0, 1)):
         """
@@ -93,7 +93,8 @@ class Mapping:
         # extend map
         robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length)
         robot_loc_remainder = robot_loc % self.block_length
-        robot_loc_blocks = self.initialise_blocks_in_range(robot_loc_blocks, lidar.getMaxRange())
+        robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks+self.origin, radius=lidar.getMaxRange())
+        robot_loc_blocks = robot_map_index - self.origin
         robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder
 
         # get lidar values
@@ -136,30 +137,6 @@ class Mapping:
             self._map[indices[0], indices[1], indices[2]] = self._map[indices[0], indices[1], indices[2]] + np.sum(
                 update_val) + 0  # <- prior = 0 for now
             # print(f"Loc {indices}, map {self._map[indices[0], indices[1], indices[2]] + np.sum(update_val) + 0}")
-
-        # for (i, j, k) in np.ndindex(self._map.shape):
-        #     xy_angle = _xy_angle_calc(robot_loc, (i, j, 0)) % (2 * math.pi)
-        #     # print(f"x:{i}, y:{j}, angle:{xy_angle}, ha:{((heading_angle%(2*math.pi)) - (lidar.getFov() / 2))}, ha2:{((heading_angle%(2*math.pi)) + (lidar.getFov() / 2))}")
-        #     if (xy_angle > ((heading_angle % (2 * math.pi)) - (lidar.getFov() / 2))) and (
-        #             xy_angle < ((heading_angle % (2 * math.pi)) + (lidar.getFov() / 2))) and (
-        #             np.sqrt((i - robot_loc[0]) ** 2 + (j - robot_loc[1]) ** 2) <= (lidar.getMaxRange() // self.block_length))):
-        #         # print(f"Len: {len(readings)}")
-        #         for reading in readings:
-        #             reading_x: float = ((reading[0] * np.cos(reading[1])) / self.block_length) + robot_loc[0]
-        #             reading_y: float = ((reading[0] * np.sin(reading[1])) / self.block_length) + robot_loc[1]
-        #             if (i - reading_x < 0) and (i - reading_x > -1) and (j - reading_y < 0) and (
-        #                     j - reading_y > -1):
-        #                 ism = learning_rate / 2
-        #             elif (i - reading_x < -1) and (j - reading_y < -1):
-        #                 ism = - learning_rate / 2
-        #             else:
-        #                 ism = 0
-        #             if ism != 0:
-        #                 print(
-        #                     f"x:{i}, y:{j}, angle:{xy_angle}, ha:{((heading_angle % (2 * math.pi)) - (lidar.getFov() / 2))}, ha2:{((heading_angle % (2 * math.pi)) + (lidar.getFov() / 2))}")
-        #                 print(f"Ism: {ism}")
-        #                 print(self._map)
-        #             self._map[i, j, robot_loc[2]] = ism + self._map[i, j, robot_loc[2]] - 0  # let 0 = prior
 
     def get(self):
         return self._map
