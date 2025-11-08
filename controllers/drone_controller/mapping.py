@@ -99,9 +99,12 @@ class Mapping:
 
         # get lidar values
         range_image_vec = np.array(lidar.getRangeImage())
+        # print(f"riv: {range_image_vec.shape}")
+        # print(range_image_vec)
         readings = np.column_stack((range_image_vec, np.linspace(heading_angle - (lidar.getFov() / 2),
                                                                  heading_angle + (lidar.getFov() / 2),
                                                                  lidar.getHorizontalResolution())))
+        # print(f"readings: {readings}")
 
         # ---- update map ----
         # get all map indexes
@@ -123,17 +126,26 @@ class Mapping:
         learning_blocks_indices = learning_blocks_indices[displacement_filter]
         # get xyz position of lidar readings in relation to robot
         readings_xyz = np.zeros((3, readings.shape[0]))
+        # negative_angle_filter = readings[:, 1] < 0
+        # fix_array = np.zeros(readings[:, 1].shape)
+        # fix_array[negative_angle_filter] = 2*math.pi
+        # readings[:, 1] = readings[:, 1] + fix_array
         readings_xyz[lidar_axis[0]] = (readings[:, 0] * np.cos(readings[:, 1]) + robot_loc[lidar_axis[0]])
         readings_xyz[lidar_axis[1]] = (readings[:, 0] * np.sin(readings[:, 1]) + robot_loc[lidar_axis[1]])
+        # print(f"Readings: {readings_xyz}")
         for indices in learning_blocks_indices:
             # Calculate new map value for specific index
-            update_val = indices - readings_xyz.T
+            diff = blocks_to_meters(indices, self.block_length) - readings_xyz.T
+            update_val = np.sqrt(np.sum(np.square(diff), axis=0))
+            # print(f"Update: {update_val}")
             too_far_filter = update_val > 0
             obstruction_filter = np.logical_and(update_val <= 0, update_val > -1)
             clear_filter = update_val <= -1
             update_val[too_far_filter] = 0
             update_val[obstruction_filter] = learning_rate / 2
             update_val[clear_filter] = - (learning_rate / 2)
+            # print(f"block_dist {blocks_to_meters(indices, self.block_length)}, reading_dist {readings_xyz.T}, " +
+            #       f"update_val {update_val}")
             self._map[indices[0], indices[1], indices[2]] = self._map[indices[0], indices[1], indices[2]] + np.sum(
                 update_val) + 0  # <- prior = 0 for now
             # print(f"Loc {indices}, map {self._map[indices[0], indices[1], indices[2]] + np.sum(update_val) + 0}")

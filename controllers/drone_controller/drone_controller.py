@@ -68,7 +68,7 @@ while robot.step(timestep) != -1:
         # Ben
     # For debugging
     if (prints > 0) and (loops % prints == 0):
-        print(mapping_inst.get())
+        print(mapping_inst.get()[:,:,0])
         # print(mapping_inst.get().shape)
     loops += 1
 
