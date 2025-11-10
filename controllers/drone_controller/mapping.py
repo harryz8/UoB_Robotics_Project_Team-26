@@ -100,7 +100,7 @@ class Mapping:
         # get lidar values
         range_image_vec = np.array(lidar.getRangeImage())
         # print(f"riv: {range_image_vec.shape}")
-        # print(range_image_vec)
+        print(range_image_vec)
         readings = np.column_stack((range_image_vec, np.linspace(heading_angle - (lidar.getFov() / 2),
                                                                  heading_angle + (lidar.getFov() / 2),
                                                                  lidar.getHorizontalResolution())))
@@ -132,7 +132,7 @@ class Mapping:
         # readings[:, 1] = readings[:, 1] + fix_array
         readings_xyz[lidar_axis[0]] = (readings[:, 0] * np.cos(readings[:, 1]) + robot_loc[lidar_axis[0]])
         readings_xyz[lidar_axis[1]] = (readings[:, 0] * np.sin(readings[:, 1]) + robot_loc[lidar_axis[1]])
-        # print(f"Readings: {readings_xyz}")
+        # print(f"Readings: {readings}")
         for indices in learning_blocks_indices:
             # Calculate new map value for specific index
             diff = blocks_to_meters(indices, self.block_length) - readings_xyz.T
