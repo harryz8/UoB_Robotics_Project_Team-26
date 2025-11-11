@@ -18,6 +18,22 @@ def _angle_calc_arr(robot_loc_meters: np.ndarray,
     return np.arctan2([lengths[:, axes[1]]], [lengths[:, axes[0]]])
 
 
+def _angle_in_given_plane_to_two_components(
+        roll_angle_radians: float,
+        roll_triangle_hyp: np.ndarray,
+        component_triangle_adj: np.ndarray
+) -> np.ndarray:
+    first_roll_triangle_adj = roll_triangle_hyp * np.cos(roll_angle_radians)
+    second_roll_triangle_adj = roll_triangle_hyp * np.round(np.cos(np.pi / 2 - roll_angle_radians), 15)
+    if isinstance(second_roll_triangle_adj, np.ndarray):
+        nan_filter = np.isnan(second_roll_triangle_adj)
+        second_roll_triangle_adj[nan_filter] = 0
+    else:
+        second_roll_triangle_adj = 0 if math.isnan(second_roll_triangle_adj) else second_roll_triangle_adj
+    return np.array([np.arctan2(first_roll_triangle_adj, component_triangle_adj),
+                     np.arctan2(second_roll_triangle_adj, component_triangle_adj)])
+
+
 def meters_to_blocks(measurement_array: np.ndarray, block_length_meters: float) -> np.ndarray:
     return measurement_array // block_length_meters
 
@@ -59,11 +75,14 @@ class Mapping:
         new_blocks_max_dist: int = math.ceil(radius / self.block_length)
         new_blocks: list[tuple[int, int, int]] = [(x, y, z)
                                                   for x in range(robot_map_index[0].astype("i") - new_blocks_max_dist,
-                                                                 robot_map_index[0].astype("i") + new_blocks_max_dist + 1)
+                                                                 robot_map_index[0].astype(
+                                                                     "i") + new_blocks_max_dist + 1)
                                                   for y in range(robot_map_index[1].astype("i") - new_blocks_max_dist,
-                                                                 robot_map_index[1].astype("i") + new_blocks_max_dist + 1)
+                                                                 robot_map_index[1].astype(
+                                                                     "i") + new_blocks_max_dist + 1)
                                                   for z in range(robot_map_index[2].astype("i") - new_blocks_max_dist,
-                                                                 robot_map_index[2].astype("i") + new_blocks_max_dist + 1)]
+                                                                 robot_map_index[2].astype(
+                                                                     "i") + new_blocks_max_dist + 1)]
         change_vec = np.zeros(3)
         for new_block in new_blocks:
             if not ((new_block[0] + change_vec[0] < self._map.shape[0]) and (
@@ -77,15 +96,19 @@ class Mapping:
         robot_map_index = (robot_map_index + change_vec).astype("i")
         return robot_map_index
 
-    def update(self, heading_angle: float, robot_loc: np.ndarray, lidar, lidar_axis: tuple[int, int] = (0, 1)):
+    def update(self, robot_loc: np.ndarray,
+               robot_attitude: np.ndarray,
+               lidar,
+               lidar_axis_from_robot: tuple[int, int] = (0, 1)):
         """
         Update map after new lidar reading.
         
-        :param lidar_axis: the axis (multiple) that define the plane in which the lidar scans
+        :param lidar_axis_from_robot: the axis (multiple) that define the plane in which the lidar scans
         :param lidar: the lidar to take measurements from
-        :param robot_loc: an np.ndarray with all 3 measurements for the displacement along the different axis in meters
-        :param heading_angle: the angle in radians between the robot and the primary lidar axis (lidar_axis[0])
-
+        :param robot_loc: an np.ndarray with all 3 measurements for the displacement along the different axis in meters.
+                          In the order x, y, z
+        :param robot_attitude: The pitch, roll and yaw of the robot (in that order). Measured in radians
+        
         :return: None
         """
         learning_rate: int = 1
@@ -93,16 +116,22 @@ class Mapping:
         # extend map
         robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length)
         robot_loc_remainder = robot_loc % self.block_length
-        robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks+self.origin, radius=lidar.getMaxRange())
+        robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.origin,
+                                                          radius=lidar.getMaxRange())
         robot_loc_blocks = robot_map_index - self.origin
         robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder
 
         # get lidar values
         range_image_vec = np.array(lidar.getRangeImage())
         # print(f"riv: {range_image_vec.shape}")
-        print(range_image_vec)
-        readings = np.column_stack((range_image_vec, np.linspace(heading_angle - (lidar.getFov() / 2),
-                                                                 heading_angle + (lidar.getFov() / 2),
+        # print(range_image_vec)
+        component_triangle_adj = np.cos(lidar.getFov() / 2) * lidar.getMaxRange()
+        roll_triangle_hyp = np.sin(lidar.getFov() / 2) * lidar.getMaxRange()
+        fov_components: np.ndarray = _angle_in_given_plane_to_two_components(robot_attitude[1].item(),
+                                                                             roll_triangle_hyp,
+                                                                             component_triangle_adj)
+        readings = np.column_stack((range_image_vec, np.linspace(robot_attitude[2].item() - (lidar.getFov() / 2),
+                                                                 robot_attitude[2].item() + (lidar.getFov() / 2),
                                                                  lidar.getHorizontalResolution())))
         # print(f"readings: {readings}")
 
@@ -113,26 +142,41 @@ class Mapping:
             np.arange(self._map.shape[1]),
             np.arange(self._map.shape[2])
         )).T.reshape(-1, 3)
-        # get angle from robot of all map indexes
-        xy_angles = _angle_calc_arr(robot_loc, _map_indexes, self.block_length, axes=lidar_axis)
+        # get pitch and yaw from robot of all map indexes
+        yaw_angles = _angle_calc_arr(robot_loc, _map_indexes, self.block_length, axes=lidar_axis_from_robot)
+        pitch_angles = _angle_calc_arr(robot_loc, _map_indexes, self.block_length,
+                                       axes=((lidar_axis_from_robot[0] + 1) % 3, (lidar_axis_from_robot[1] + 1) % 3))
+
         # filter map indexes to get those within lidar FOV
-        heading_filter = np.logical_and(xy_angles > ((heading_angle % (2 * math.pi)) - (lidar.getFov() / 2)),
-                                        xy_angles < ((heading_angle % (2 * math.pi)) + (lidar.getFov() / 2)))
-        learning_blocks_indices = _map_indexes[heading_filter.flatten()]
+        yaw_filter = np.logical_and(
+            yaw_angles > ((robot_attitude[2].item() % (2 * math.pi)) - fov_components[0].item()),
+            yaw_angles < ((robot_attitude[2].item() % (2 * math.pi)) + fov_components[0].item()))
+        pitch_filter = np.logical_and(
+            pitch_angles > ((robot_attitude[0].item() % (2 * math.pi)) - fov_components[1].item()),
+            pitch_angles < ((robot_attitude[0].item() % (2 * math.pi)) + fov_components[1].item()))
+        learning_blocks_indices = _map_indexes[yaw_filter.flatten() & pitch_filter.flatten()]
         # filter map indexes to get those within lidar range
         displacement_filter = displacement_2d(robot_loc,
                                               blocks_to_meters(learning_blocks_indices, self.block_length),
-                                              axis=lidar_axis) <= lidar.getMaxRange()
+                                              axis=lidar_axis_from_robot) <= lidar.getMaxRange()
         learning_blocks_indices = learning_blocks_indices[displacement_filter]
         # get xyz position of lidar readings in relation to robot
+        component_triangle_adj2 = np.cos(readings[:, 1]) * readings[:, 0]
+        roll_triangle_hyp2 = np.sin(readings[:, 1]) * readings[:, 0]
+        reading_angle_components = _angle_in_given_plane_to_two_components(robot_attitude[1].item(),
+                                                                           roll_triangle_hyp2,
+                                                                           component_triangle_adj2)
+        # print(f"Angles: {np.round(reading_angle_components, 4)}")
         readings_xyz = np.zeros((3, readings.shape[0]))
-        # negative_angle_filter = readings[:, 1] < 0
-        # fix_array = np.zeros(readings[:, 1].shape)
-        # fix_array[negative_angle_filter] = 2*math.pi
-        # readings[:, 1] = readings[:, 1] + fix_array
-        readings_xyz[lidar_axis[0]] = (readings[:, 0] * np.cos(readings[:, 1]) + robot_loc[lidar_axis[0]])
-        readings_xyz[lidar_axis[1]] = (readings[:, 0] * np.sin(readings[:, 1]) + robot_loc[lidar_axis[1]])
-        # print(f"Readings: {readings}")
+        readings_xyz[lidar_axis_from_robot[0]] = (
+                readings[:, 0] * np.cos(reading_angle_components[0]) + robot_loc[lidar_axis_from_robot[0]])
+        readings_xyz[lidar_axis_from_robot[1]] = (
+                readings[:, 0] * np.sin(reading_angle_components[0]) + robot_loc[lidar_axis_from_robot[1]])
+        for num in range(0, 3):
+            if not (num in lidar_axis_from_robot):
+                readings_xyz[num] = (readings[:, 0] * np.sin(reading_angle_components[1]) + robot_loc[num])
+                break
+        # print(readings_xyz)
         for indices in learning_blocks_indices:
             # Calculate new map value for specific index
             diff = blocks_to_meters(indices, self.block_length) - readings_xyz.T

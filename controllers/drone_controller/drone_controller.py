@@ -53,7 +53,7 @@ prints = 10
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
     key = keyboard.getKey()
-    mapping_inst.update(0, np.array([0, 0, 0]), lidar, lidar_axis=(0, 1))
+    mapping_inst.update(np.array([0, 0, 0]), np.array([0, 0, 0]), lidar, lidar_axis_from_robot=(0, 1))
     if key == ord("W"):
         pass
         #go forward
@@ -68,7 +68,8 @@ while robot.step(timestep) != -1:
         # Ben
     # For debugging
     if (prints > 0) and (loops % prints == 0):
-        print(mapping_inst.get()[:,:,0])
+        pass
+        print(mapping_inst.get())
         # print(mapping_inst.get().shape)
     loops += 1
 
