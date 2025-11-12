@@ -1,6 +1,7 @@
 """drone_controller controller."""
 from mapping import *
 from path_planner import Path_Planner
+from lidar import Lidar
 import numpy as np
 
 # You may need to import some classes of the controller module. Ex:
@@ -38,9 +39,9 @@ camera = robot.getDevice("camera")
 camera.enable(timestep)
 
 # getting lidar device
-lidar = robot.getDevice("lidar")
-lidar.enable(timestep)
-# lidar.enablePointCloud()
+lidar_device = robot.getDevice("lidar")
+lidar_device.enable(timestep)
+lidar_inst: Lidar = Lidar(lidar_device, axis_from_robot=(0, 1))
 
 # create the map
 mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
@@ -53,7 +54,7 @@ prints = 10
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
     key = keyboard.getKey()
-    mapping_inst.update(np.array([0, 0, 0]), np.array([0, 0, 0]), lidar, lidar_axis_from_robot=(0, 1))
+    mapping_inst.update(np.array([0, 0, 0]), np.array([0, 0, 0]), lidar_inst)
     if key == ord("W"):
         pass
         #go forward
