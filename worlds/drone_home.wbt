@@ -27,7 +27,7 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/DogHouse.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/Wheelbarrow.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/WateringCan.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/robotstadium/protos/RobotstadiumSoccerField.proto"
+EXTERNPROTO "../protos/RobotstadiumSoccerField.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/UrbanFence.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/drinks/protos/BeerBottle.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/DrinkingFountain.proto"
@@ -36,8 +36,8 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/project
 WorldInfo {
 }
 Viewpoint {
-  orientation 0.11447900353159532 0.11208076422951249 -0.9870828030313068 1.6049380368871813
-  position 4.6880756874890315 9.972002626388804 6.492573523469424
+  orientation 0.4238331983700213 -0.5057592708004301 -0.751380715721967 4.6034762482462
+  position -36.225397072290676 -66.59595668563695 104.72905599175279
 }
 TexturedBackground {
 }
@@ -58,14 +58,19 @@ Floor {
     }
   }
 }
+ControlledStreetLight {
+  translation -10 27 0.1
+  rotation 0 0 1 1.57079
+  name "street light(6)"
+}
 Mavic2Pro {
-  hidden position_0_0 1.0902602977145057e-08
-  hidden rotation_6 0 0 1 6.151130032703392e-07
-  hidden position_6_0 -2.5611321458827365e-08
-  hidden rotation_7 0 -1 0 2.9802322387695313e-08
-  hidden position_7_0 3.025383789741123e-11
-  translation -0.11269920947431612 0.1374278012035338 0.07607267225337827
-  rotation 5.215934617761887e-05 -0.9999999432955036 -0.00033269865048133403 0.07011179849764677
+  hidden position_0_0 5.5527432949340525e-09
+  hidden rotation_6 0 0 1 6.100383249061942e-07
+  hidden position_6_0 -3.8543553632850645e-08
+  hidden rotation_7 0 -1 0 4.2146848510894035e-08
+  hidden position_7_0 4.827103103579557e-09
+  translation -0.11269920492501888 0.13742780124576962 0.07607270023175812
+  rotation 5.2149564108867994e-05 -0.9999999432961448 -0.00033269825654396845 0.07011172230713603
   controller "drone_controller"
   bodySlot [
     Lidar {
@@ -102,6 +107,21 @@ ControlledStreetLight {
   rotation 0 0 1 -1.5707953071795862
   name "street light(5)"
 }
+ControlledStreetLight {
+  translation -30 46.25 0.1
+  rotation 0 0 1 -1.5707953071795862
+  name "street light(8)"
+}
+ControlledStreetLight {
+  translation -50 46.25 0.2
+  rotation 0 0 1 -1.5707953071795862
+  name "street light(10)"
+}
+ControlledStreetLight {
+  translation -10 46.25 0.2
+  rotation 0 0 1 -1.5707953071795862
+  name "street light(9)"
+}
 Bench {
   translation -6.11 -12.32 4.08287e-06
   rotation 1.125079999996903e-14 -2.346409999993541e-06 0.9999999999972473 3.14159
@@ -116,32 +136,32 @@ DogHouse {
   translation -52.67 -36.85 0
 }
 BeerBottle {
-  translation -6.247415454338979 -10.934211742988474 -0.0023479995363657746
-  rotation 5.757589044871448e-17 7.520496120836604e-18 1 1.6302695412959525
+  translation -6.247415454338979 -10.934211742988474 -0.0023479995365328354
+  rotation -5.233254061828753e-17 6.96743391967371e-18 1 1.6302695412959525
   name "beer bottle(4)"
   mass 40
 }
 BeerBottle {
-  translation -6.34129868136151 -10.911055966290629 0.024427252624744846
-  rotation -0.26190083713733026 0.6707702599007268 0.6938841473470028 -2.772304493033803
+  translation -6.341298793336108 -10.911055814374235 0.024427252617154924
+  rotation -0.26190083712862344 0.6707702598780325 0.6938841473722274 -2.772304493020985
   name "beer bottle(5)"
   mass 40
 }
 BeerBottle {
-  translation -6.233624724515517 -11.037990992318479 0.024427252624744933
-  rotation 0.7536322911745592 0.2820018679456556 0.5937283184876274 2.1503682060543383
+  translation -6.233624549292545 -11.037991062417 0.024427252617155008
+  rotation 0.7536322911559568 0.28200186793843796 0.5937283185146679 2.1503682060167644
   name "beer bottle(6)"
   mass 40
 }
 BeerBottle {
-  translation -6.308602032258661 -10.978670975413285 0.02028548145622531
-  rotation 0.5371213920741263 -0.5883194094910175 0.6044674371647267 2.101458586918462
+  translation -6.308578546081485 -10.975784408081493 0.02344864636413708
+  rotation 0.5433713229201355 -0.5960696659378508 0.5911417416971677 2.1214497863167208
   name "beer bottle(1)"
   mass 40
 }
 BeerBottle {
-  translation -6.449210641570168 -10.628447106294875 0.024427252624744926
-  rotation -0.19070847318438044 0.7794742886371603 -0.596699347753352 2.16056175834744
+  translation -6.449210485894198 -10.628447212980815 0.0244272526171551
+  rotation -0.1907084731796307 0.7794742886177147 -0.5966993477802719 2.1605617583099646
   name "beer bottle(3)"
   mass 40
 }
