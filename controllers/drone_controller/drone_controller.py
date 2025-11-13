@@ -2,10 +2,9 @@
 #from mapping import Mapping
 #from path_planner import Path_Planner
 
-# You may need to import some classes of the controller module. Ex:
-#  from controller import Robot, Motor, DistanceSensor
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
+import math
 
 BLOCK_LENGTH : int = 350 #mm
 
@@ -53,9 +52,10 @@ vertical_offset = 0.6
 vertical_gain = 3.0              
 roll_gain = 50.0                  
 pitch_gain = 30.0
+yaw_gain = 15.0
 
-#target altitude
 target_altitude = 1.0
+target_yaw = 0.0
     
 # getting camera device
 camera = robot.getDevice("camera")
@@ -83,7 +83,7 @@ gyro.enable(timestep)
 while robot.step(timestep) != -1:
     key=keyboard.getKey()
     
-     # read sensors
+    # read sensors
     roll, pitch, yaw = imu.getRollPitchYaw()
     altitude = gps.getValues()[2]
     roll_velocity, pitch_velocity, _ = gyro.getValues()
@@ -92,13 +92,16 @@ while robot.step(timestep) != -1:
     roll_input = roll_gain * clamp(roll, -1.0, 1.0)
     pitch_input = pitch_gain * clamp(pitch, -1.0, 1.0)
     vertical_input = vertical_gain * (clamp(target_altitude - altitude + vertical_offset, -1.0, 1.0)) ** 3
-
-    # Motor velocities
-    fl_input = vertical_thrust_base + vertical_input - roll_input + pitch_input
-    fr_input = vertical_thrust_base + vertical_input + roll_input + pitch_input
-    rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input
-    rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input
     
+     # wrap yaw error to [-pi, pi]
+    yaw_error = math.atan2(math.sin(target_yaw - yaw), math.cos(target_yaw - yaw))
+    yaw_input = yaw_gain * clamp(yaw_error, -1.0, 1.0)
+
+    # Motor velocities including yaw
+    fl_input = vertical_thrust_base + vertical_input - roll_input + pitch_input - yaw_input
+    fr_input = vertical_thrust_base + vertical_input + roll_input + pitch_input + yaw_input
+    rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
+    rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
     if (key == ord("W")):
         pass
     
