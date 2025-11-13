@@ -3,10 +3,10 @@ import math
 from lidar import Lidar
 
 
-def _xy_angle_calc(robot_loc_blocks: np.ndarray, spec_loc_blocks: tuple[int, int, int]) -> float:
-    # calculates angle from x-axis for vector between these two points
-    lengths = np.array(spec_loc_blocks) - robot_loc_blocks
-    return np.arctan2([lengths[1]], [lengths[0]])
+# def _xy_angle_calc(robot_loc_blocks: np.ndarray, spec_loc_blocks: tuple[int, int, int]) -> float:
+#     # calculates angle from x-axis for vector between these two points
+#     lengths = np.array(spec_loc_blocks) - robot_loc_blocks
+#     return np.arctan2([lengths[1]], [lengths[0]])
 
 
 def _angle_calc_arr(robot_loc_meters: np.ndarray,
@@ -89,12 +89,13 @@ class Mapping:
                                                                  robot_map_index[2].astype(
                                                                      "i") + new_blocks_max_dist + 1)]
         change_vec = np.zeros(3)
-        for new_block in new_blocks:
+        for new_block in [min(new_blocks), max(new_blocks)]:
             if not ((new_block[0] + change_vec[0] < self._map.shape[0]) and (
-                    new_block[1] + change_vec[1] < self._map.shape[1]) and (
-                            new_block[2] + change_vec[2] < self._map.shape[2]) and (
-                            new_block[0] + change_vec[0] >= 0) and (new_block[1] + change_vec[1] >= 0) and (
-                            new_block[2] + change_vec[2] >= 0)):
+                     new_block[1] + change_vec[1] < self._map.shape[1]) and (
+                     new_block[2] + change_vec[2] < self._map.shape[2]) and (
+                     new_block[0] + change_vec[0] >= 0) and (
+                     new_block[1] + change_vec[1] >= 0) and (
+                     new_block[2] + change_vec[2] >= 0)):
                 change_vec = change_vec + self._extend_to((int(new_block[0] + change_vec[0]),
                                                            int(new_block[1] + change_vec[1]),
                                                            int(new_block[2] + change_vec[2])))
@@ -129,11 +130,11 @@ class Mapping:
 
         # calculate filter
         yaw_filter = np.logical_and(
-            yaw_angles > ((robot_attitude[2].item() % (2 * math.pi)) - fov_components[0].item()),
-            yaw_angles < ((robot_attitude[2].item() % (2 * math.pi)) + fov_components[0].item()))
+            yaw_angles >= ((robot_attitude[2].item() % (2 * math.pi)) - fov_components[0].item()),
+            yaw_angles <= ((robot_attitude[2].item() % (2 * math.pi)) + fov_components[0].item()))
         pitch_filter = np.logical_and(
-            pitch_angles > ((robot_attitude[0].item() % (2 * math.pi)) - fov_components[1].item()),
-            pitch_angles < ((robot_attitude[0].item() % (2 * math.pi)) + fov_components[1].item()))
+            pitch_angles >= ((robot_attitude[0].item() % (2 * math.pi)) - fov_components[1].item()),
+            pitch_angles <= ((robot_attitude[0].item() % (2 * math.pi)) + fov_components[1].item()))
 
         # filter map indexes to get those within lidar FOV
         return yaw_filter.flatten() & pitch_filter.flatten()
@@ -143,9 +144,7 @@ class Mapping:
                                blocks_to_meters(self.get_all_map_indexes(), self.block_length),
                                axis=lidar_inst.axis_from_robot) <= lidar_inst.device.getMaxRange()
 
-    def update(self, robot_loc: np.ndarray,
-               robot_attitude: np.ndarray,
-               lidar_inst: Lidar):
+    def update(self, robot_loc: np.ndarray, robot_attitude: np.ndarray, lidar_inst: Lidar):
         """
         Update map after new lidar reading.
 
@@ -173,6 +172,7 @@ class Mapping:
         range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst)
         learning_blocks_indices = self.get_all_map_indexes()[fov_mask & range_mask]
 
+        # Get the range readings from the lidar
         readings_xyz = lidar_inst.get_readings_coordinates_from_robot(robot_loc, robot_attitude)
 
         for indices in learning_blocks_indices:
@@ -188,7 +188,7 @@ class Mapping:
             self._map[indices[0], indices[1], indices[2]] = self._map[indices[0], indices[1], indices[2]] + np.sum(
                 update_val) + 0  # <- prior = 0 for now
 
-    def get(self):
+    def get(self) -> np.ndarray:
         return self._map
 
     def get_coordinate(self, coord: tuple[int, int, int]) -> np.ndarray:
