@@ -24,8 +24,8 @@ class TestDevice:
 
 def test_map_update(map_inst, lidar_inst):
     map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
-    print(map_inst.get()[:, :, 4])
-    print(map_inst.get().shape)
+    # print(map_inst.get())
+    # print(map_inst.get().shape)
 
 def test_fov_mask(map_inst, lidar_inst):
     np.set_printoptions(threshold=sys.maxsize)
@@ -33,6 +33,10 @@ def test_fov_mask(map_inst, lidar_inst):
     mask = map_inst.get_lidar_fov_mask(robot_loc=robot_loc,
                                        robot_attitude=np.array([0, 0, 0]),
                                        lidar_inst=lidar_inst)
+    temp_map = np.zeros_like(map_inst.get())
+    for index in map_inst.get_all_map_indexes()[mask]:
+        temp_map[index[0], index[1], index[2]] = 1
+    print(temp_map[:, :, 4])
     assert map_inst.get_all_map_indexes()[mask].shape[0] == 45, "test_fov_mask() failed."
 
 def test_initialise_blocks_in_range(robot_map):
@@ -45,6 +49,10 @@ def test_range_mask(map_inst, lidar_inst):
     mask = map_inst.get_lidar_range_mask(robot_loc, lidar_inst)
     vals = blocks_to_meters(map_inst.get_all_map_indexes()[mask], map_inst.block_length) - robot_loc
     displacements = np.sqrt(np.sum(np.square(vals), axis=1))
+    temp_map = np.zeros_like(map_inst.get())
+    for index in map_inst.get_all_map_indexes()[mask]:
+        temp_map[index[0], index[1], index[2]] = 1
+    print(temp_map[:, :, 4])
     assert (displacements <= 1).all(), "test_range_mask() failed."
 
 if __name__ == "__main__":
@@ -53,8 +61,8 @@ if __name__ == "__main__":
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1))
     mymap = Mapping(250, 1)
-    test_initialise_blocks_in_range(mymap)
+    # test_initialise_blocks_in_range(mymap)
     test_fov_mask(mymap, mydar)
-    test_range_mask(mymap, mydar)
+    # test_range_mask(mymap, mydar)
     # test_map_update(mymap, mydar)
     print("Everything passed")

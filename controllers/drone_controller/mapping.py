@@ -132,15 +132,31 @@ class Mapping:
                                              (lidar_inst.axis_from_robot[1] + 1) % 3))
 
         # calculate filter
-        yaw_filter = np.logical_and(
-            yaw_angles + (2*np.pi) >= (robot_attitude[2].item() - fov_components[0].item()) + (2*np.pi),
-            yaw_angles + (2*np.pi) <= (robot_attitude[2].item() + fov_components[0].item()) + (2*np.pi))
-        pitch_filter = np.logical_and(
-            pitch_angles + (2*np.pi) >= (robot_attitude[0].item() - fov_components[1].item()) + (2*np.pi),
-            pitch_angles + (2*np.pi) <= (robot_attitude[0].item() + fov_components[1].item()) + (2*np.pi))
+        if (robot_attitude[2].item() - fov_components[0].item()) % (2*np.pi) > (robot_attitude[2].item() + fov_components[0].item()) % (2*np.pi):
+            yaw_filter = np.logical_or(
+                (yaw_angles % (2*np.pi)) >= (
+                        (robot_attitude[2].item() - fov_components[0].item()) % (2*np.pi)),
+                (yaw_angles % (2*np.pi)) <= (
+                        (robot_attitude[2].item() + fov_components[0].item()) % (2*np.pi)))
+        else:
+            yaw_filter = np.logical_and(
+                (yaw_angles % (2 * np.pi)) >= (
+                            (robot_attitude[2].item() - fov_components[0].item()) % (2 * np.pi)),
+                (yaw_angles % (2 * np.pi)) <= (
+                            (robot_attitude[2].item() + fov_components[0].item()) % (2 * np.pi)))
+
+        if (robot_attitude[0].item() - fov_components[1].item()) % (2*np.pi) > (robot_attitude[0].item() + fov_components[1].item()) % (2*np.pi):
+            pitch_filter = np.logical_or(
+                (pitch_angles % (2*np.pi)) >= ((robot_attitude[0].item() - fov_components[1].item()) % (2*np.pi)),
+                (pitch_angles % (2*np.pi)) <= ((robot_attitude[0].item() + fov_components[1].item()) % (2*np.pi)))
+        else:
+            pitch_filter = np.logical_and(
+                (pitch_angles % np.pi) >= ((robot_attitude[0].item() - fov_components[1].item()) % np.pi),
+                (pitch_angles % np.pi) <= ((robot_attitude[0].item() + fov_components[1].item()) % np.pi))
 
         # filter map indexes to get those within lidar FOV
-        return yaw_filter.flatten() & pitch_filter.flatten()
+        fov_mask = yaw_filter.flatten() & pitch_filter.flatten()
+        return fov_mask
 
     def get_lidar_range_mask(self, robot_loc: np.ndarray, lidar_inst):
         dist_from_robot = blocks_to_meters(self.get_all_map_indexes(), self.block_length) - robot_loc
@@ -177,6 +193,15 @@ class Mapping:
         fov_mask = self.get_lidar_fov_mask(robot_loc, robot_attitude, lidar_inst)
         range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst)
         learning_blocks_indices = self.get_all_map_indexes()[fov_mask & range_mask]
+        # disallow current block
+        current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
+        learning_blocks_indices = np.delete(learning_blocks_indices, current_index, axis=0)
+
+        # temp
+        temp_map = np.zeros_like(self._map)
+        for index in learning_blocks_indices:
+            temp_map[index[0], index[1], index[2]] = 1
+        print(temp_map[:, :, 4])
 
         # Get the range readings from the lidar
         readings_xyz = lidar_inst.get_readings_coordinates_from_robot(robot_loc, robot_attitude)
