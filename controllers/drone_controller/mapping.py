@@ -48,6 +48,8 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
 
 
 def displacement_2d(start: np.ndarray, end: np.ndarray, axis: tuple[int, int]) -> np.ndarray:
+    print(f"end : {end}")
+    print(f"start : {start}")
     return np.sqrt(np.square(end[:, axis[0]] - start[axis[0]]) + np.square(end[:, axis[1]] - start[axis[1]]))
 
 
@@ -141,9 +143,8 @@ class Mapping:
         return yaw_filter.flatten() & pitch_filter.flatten()
 
     def get_lidar_range_mask(self, robot_loc: np.ndarray, lidar_inst):
-        return displacement_2d(robot_loc,
-                               blocks_to_meters(self.get_all_map_indexes(), self.block_length),
-                               axis=lidar_inst.axis_from_robot) <= lidar_inst.device.getMaxRange()
+        dist_from_robot = blocks_to_meters(self.get_all_map_indexes(), self.block_length) - robot_loc
+        return np.sqrt(np.sum(np.square(dist_from_robot), axis=1)) <= 1
 
     def prepare_map_and_update_location(self, robot_loc: np.ndarray, lidar_inst) -> np.ndarray:
         # extend map
