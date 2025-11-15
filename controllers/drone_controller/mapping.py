@@ -10,6 +10,11 @@ def _angle_calc_arr(robot_loc_meters: np.ndarray,
                     ) -> np.ndarray:
     # calculates angle from x-axis for vector between these two points when spec_loc_blocks is an np.ndarray and robot_loc is in meters not blocks
     lengths = spec_loc_blocks - (robot_loc_meters / block_length_meters)
+
+    # handles precision error on zeros
+    precision_error_mask = np.isclose(lengths, 0)
+    lengths[precision_error_mask] = 0
+
     return np.arctan2([lengths[:, axes[1]]], [lengths[:, axes[0]]])
 
 
@@ -41,10 +46,11 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
     return block_indices_array * block_length_meters
 
 
-# def displacement_2d(start: np.ndarray, end: np.ndarray, axis: tuple[int, int]) -> np.ndarray:
-#     print(f"end : {end}")
-#     print(f"start : {start}")
-#     return np.sqrt(np.square(end[:, axis[0]] - start[axis[0]]) + np.square(end[:, axis[1]] - start[axis[1]]))
+def visually_test_map(map_inst, mask: np.ndarray, z_index: int):
+    temp_map = np.zeros_like(map_inst.get())
+    for index in map_inst.get_all_map_indexes()[mask]:
+        temp_map[index[0], index[1], index[2]] = 1
+    print(temp_map[:, :, z_index])
 
 
 class Mapping:
@@ -126,7 +132,8 @@ class Mapping:
                                              (lidar_inst.axis_from_robot[1] + 1) % 3))
 
         # calculate filter
-        if (robot_attitude[2].item() - fov_components[0].item()) % (2*np.pi) > (robot_attitude[2].item() + fov_components[0].item()) % (2*np.pi):
+        if (robot_attitude[2].item() - fov_components[0].item()) % (2*np.pi) > (
+                robot_attitude[2].item() + fov_components[0].item()) % (2*np.pi):
             yaw_filter = np.logical_or(
                 (yaw_angles % (2*np.pi)) >= (
                         (robot_attitude[2].item() - fov_components[0].item()) % (2*np.pi)),
