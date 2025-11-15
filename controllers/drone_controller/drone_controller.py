@@ -1,7 +1,8 @@
 """drone_controller controller."""
 from mapping import Mapping
 from path_planner import Path_Planner
-
+import numpy as np
+import time
 # You may need to import some classes of the controller module. Ex:
 #  from controller import Robot, Motor, DistanceSensor
 from controller import Robot
@@ -14,7 +15,29 @@ robot = Robot()
 
 # get the time step of the current world.
 timestep = int(robot.getBasicTimeStep())
-
+grid = [
+    [   
+        [1,  1,  1,  0, -1],
+        [1,  1,  0,  0, -1],
+        [1,  1,  1,  1, -1],
+        [0,  0,  1,  1,  1],
+        [-1, -1, 1,  1,  1]
+    ],
+    [   
+        [1,  1,  1,  1,  1],
+        [1,  0,  0,  1, -1],
+        [1,  1,  1,  1, -1],
+        [1,  0,  1,  1,  1],
+        [-1, -1, 1,  0,  -1]
+    ],
+    [   
+        [1,  1,  0,  0,  0],
+        [1,  1,  1,  1, -1],
+        [0,  1,  1,  1, -1],
+        [0,  0,  1,  1,  1],
+        [-1,  1,  1,  1,  1]
+    ]
+]
 # create keyboard instance
 keyboard=Keyboard()
 keyboard.enable(timestep)
@@ -54,7 +77,8 @@ while robot.step(timestep) != -1:
         #go forward
     #...
     elif (key == ord("R")):
-        print(path_planner.test())
+        print(path_planner.get_Path(path_planner.shortest_path((0,0,0),(2,4,4),np.array(grid)),(2,4,4)))
+        time.sleep(1)
         pass
         # Ben
         
