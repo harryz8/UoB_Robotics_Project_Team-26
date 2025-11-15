@@ -174,7 +174,7 @@ class Mapping:
 
     def is_in_block(self, block_index: np.ndarray, location_meters: np.ndarray) -> bool:
         block_index_meters = blocks_to_meters(block_index, self.block_length)
-        return np.all((location_meters > (block_index_meters - block_index/2)) & (location_meters < (block_index_meters + block_index/2)), axis=1)
+        return np.all((location_meters > (block_index_meters - self.block_length/2)) & (location_meters < (block_index_meters + self.block_length/2)), axis=1)
 
     def update(self, robot_loc: np.ndarray, robot_attitude: np.ndarray, lidar_inst: Lidar):
         """
@@ -197,6 +197,7 @@ class Mapping:
         fov_mask = self.get_lidar_fov_mask(robot_loc, robot_attitude, lidar_inst)
         range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst)
         learning_blocks_indices = self.get_all_map_indexes()[fov_mask & range_mask]
+
         # disallow current block
         current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
         learning_blocks_indices = np.delete(learning_blocks_indices, current_index, axis=0)
@@ -204,15 +205,16 @@ class Mapping:
         # Get the range readings from the lidar
         readings_vec_from_robot = lidar_inst.get_readings_vector_from_robot(robot_attitude)
 
+        # i = 0
         for indices in learning_blocks_indices:
             update_amount = 0
+
             # is the reading in the block specified by indices
             reading_disp = readings_vec_from_robot + robot_loc
             reading_dist = np.linalg.norm(reading_disp, axis=1)
             in_block = self.is_in_block(indices, reading_disp)
             collisions = np.zeros_like(in_block) + learning_rate/2
             update_amount += np.sum(collisions[in_block])
-            print(update_amount)
 
             # is the block free
             norm = reading_disp.T / reading_dist.T
@@ -226,14 +228,10 @@ class Mapping:
                 collisions[over_mask] = 0
                 update_amount += np.sum(collisions[in_block])
                 cur_disp -= block_step
-            print(update_amount)
 
             # Update map index
-            print(self._map[indices[0], indices[1], indices[2]])
             self._map[indices[0], indices[1], indices[2]] = (self._map[indices[0], indices[1], indices[2]] +
                                                              update_amount + 0)  # <- prior = 0 for now
-            print(self._map[indices[0], indices[1], indices[2]])
-            print("\n")
 
     def get(self) -> np.ndarray:
         return self._map
