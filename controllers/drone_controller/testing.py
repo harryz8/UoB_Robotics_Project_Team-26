@@ -59,10 +59,10 @@ if __name__ == "__main__":
     range_image = 0.5 / np.cos(np.linspace(-np.pi / 2, np.pi / 2, 100))
     range_image_filter = range_image > 1
     range_image[range_image_filter] = np.inf
-    mydar = Lidar(TestDevice(range_image), (0, 1))
-    mymap = Mapping(250, 1)
-    # test_initialise_blocks_in_range(mymap)
-    # test_fov_mask(mymap, mydar)
-    # test_range_mask(mymap, mydar)
-    test_map_update(mymap, mydar)
+    mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
+    mymap = Mapping(250, 1, 10000)
+    test_initialise_blocks_in_range(mymap)
+    test_fov_mask(mymap, mydar)
+    test_range_mask(mymap, mydar)
+    # test_map_update(mymap, mydar)
     print("Everything passed")

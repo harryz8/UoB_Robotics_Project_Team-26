@@ -41,10 +41,14 @@ camera.enable(timestep)
 # getting lidar device
 lidar_device = robot.getDevice("lidar")
 lidar_device.enable(timestep)
-lidar_inst: Lidar = Lidar(lidar_device, axis_from_robot=(0, 1))
+lidar_inst: Lidar = Lidar(lidar_device,
+                          axis_from_robot=(0, 1),
+                          object_detected_given_object_prob=0.9,  # to be determined
+                          empty_detected_given_empty_prob=0.9  # to be determined
+                          )
 
 # create the map
-mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
+mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, 10000) # max_certainty to be determined
 
 # for debugging
 loops = 0
@@ -70,11 +74,11 @@ while robot.step(timestep) != -1:
     # For debugging
     if (prints > 0) and (loops % prints == 0):
         pass
-        print(mapping_inst.get())
+        print(f"{mapping_inst.get()}\n\r\n\r")
         # print(mapping_inst.get().shape)
     loops += 1
 
-    #localisation -> mapping -> databse of map
+    #localisation -> mapping -> database of map
     pass
 
 # Enter here exit cleanup code.

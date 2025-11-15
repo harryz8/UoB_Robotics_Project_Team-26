@@ -3,9 +3,16 @@ import mapping
 
 
 class Lidar:
-    def __init__(self, lidar_device, axis_from_robot: tuple[int, int]):
+
+    def __init__(self,
+                 lidar_device,
+                 axis_from_robot: tuple[int, int],
+                 object_detected_given_object_prob: int,
+                 empty_detected_given_empty_prob: int):
         self.device = lidar_device
         self.axis_from_robot: tuple[int, int] = axis_from_robot
+        self.object_detection_accuracy = object_detected_given_object_prob
+        self.empty_detection_accuracy = empty_detected_given_empty_prob
 
     def get_readings(self) -> np.ndarray:
         return np.array(self.device.getRangeImage())

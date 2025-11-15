@@ -3,12 +3,6 @@ import math
 from lidar import Lidar
 
 
-# def _xy_angle_calc(robot_loc_blocks: np.ndarray, spec_loc_blocks: tuple[int, int, int]) -> float:
-#     # calculates angle from x-axis for vector between these two points
-#     lengths = np.array(spec_loc_blocks) - robot_loc_blocks
-#     return np.arctan2([lengths[1]], [lengths[0]])
-
-
 def _angle_calc_arr(robot_loc_meters: np.ndarray,
                     spec_loc_blocks: np.ndarray,
                     block_length_meters: float,
@@ -47,10 +41,10 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
     return block_indices_array * block_length_meters
 
 
-def displacement_2d(start: np.ndarray, end: np.ndarray, axis: tuple[int, int]) -> np.ndarray:
-    print(f"end : {end}")
-    print(f"start : {start}")
-    return np.sqrt(np.square(end[:, axis[0]] - start[axis[0]]) + np.square(end[:, axis[1]] - start[axis[1]]))
+# def displacement_2d(start: np.ndarray, end: np.ndarray, axis: tuple[int, int]) -> np.ndarray:
+#     print(f"end : {end}")
+#     print(f"start : {start}")
+#     return np.sqrt(np.square(end[:, axis[0]] - start[axis[0]]) + np.square(end[:, axis[1]] - start[axis[1]]))
 
 
 class Mapping:
@@ -58,24 +52,24 @@ class Mapping:
     Occupancy grid map
     """
 
-    _map = np.ones((1, 1, 1), dtype='float64')
+    prior = 0  # priors are 0
+    _map = np.zeros((1, 1, 1), dtype='float64') + prior
     origin = np.array([0, 0, 0])  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
 
-    def __init__(self, block_length_mm: float, robot_size_blocks: int):
+    def __init__(self, block_length_mm: float, robot_size_blocks: int, maximum_certainty_log_odds: float):
         self.block_length = block_length_mm / 1000
         self.robot_size_blocks = robot_size_blocks
+        self.max_certainty = maximum_certainty_log_odds
 
     def _extend_to(self, coords: tuple[int, int, int]) -> np.ndarray:
         prev_start = self.origin.copy()
         map_shape = (self._map.shape - np.ones(3)).astype('i')
         self.origin = self.origin + np.abs(np.minimum(0, coords))
-        # (map_shape - np.maximum(map_shape, np.array(coords))) - (np.zeros(3) + np.minimum(np.zeros(3), np.array(coords))))
-        # print(f"({abs(min(0, coords[0]))}, {max(0, coords[0]-map_shape[0])}), ({abs(min(0, coords[1]))}, {max(0, coords[1]-map_shape[1])}), ({abs(min(0, coords[2]))}, {max(0, coords[2]-map_shape[2])})")
         self._map = np.pad(self._map, pad_width=(
             (np.abs(np.minimum(0, coords[0])), np.maximum(0, coords[0] - map_shape[0])),
             (np.abs(np.minimum(0, coords[1])), np.maximum(0, coords[1] - map_shape[1])),
             (np.abs(np.minimum(0, coords[2])), np.maximum(0, coords[2] - map_shape[2]))),
-                           mode='constant', constant_values=1)
+                           mode='constant', constant_values=self.prior)
         return self.origin - prev_start
 
     def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
@@ -187,7 +181,8 @@ class Mapping:
         
         :return: None
         """
-        learning_rate: int = 1
+        learning_rate_when_object: float = np.log(lidar_inst.object_detection_accuracy/(1-lidar_inst.empty_detection_accuracy))
+        learning_rate_when_empty: float = np.log((1-lidar_inst.object_detection_accuracy)/lidar_inst.empty_detection_accuracy)
 
         robot_loc = self.prepare_map_and_update_location(robot_loc, lidar_inst)
 
@@ -213,7 +208,7 @@ class Mapping:
             reading_disp = readings_vec_from_robot + robot_loc
             reading_dist = np.linalg.norm(reading_disp, axis=1)
             in_block = self.is_in_block(indices, reading_disp)
-            collisions = np.zeros_like(in_block) + learning_rate/2
+            collisions = np.zeros_like(in_block) + learning_rate_when_object
             update_amount += np.sum(collisions[in_block])
 
             # is the block free
@@ -223,18 +218,24 @@ class Mapping:
             max_index = np.argmax(reading_dist)
             while np.sum(np.sign(cur_disp[max_index])) * reading_dist[max_index] > 0:
                 in_block = self.is_in_block(indices, cur_disp)
-                collisions = np.zeros_like(in_block) - learning_rate / 2
+                collisions = np.zeros_like(in_block) + learning_rate_when_empty
                 over_mask = np.sum(np.sign(cur_disp), axis=1) * reading_dist < 0
                 collisions[over_mask] = 0
                 update_amount += np.sum(collisions[in_block])
                 cur_disp -= block_step
 
             # Update map index
-            self._map[indices[0], indices[1], indices[2]] = (self._map[indices[0], indices[1], indices[2]] +
-                                                             update_amount + 0)  # <- prior = 0 for now
+            self._map[indices[0], indices[1], indices[2]] = self._map[indices[0], indices[1], indices[2]] + update_amount
 
     def get(self) -> np.ndarray:
-        return self._map
+        # Returns a copy of the map where the certainty is limited to [-self.max_certainty, self.max_certainty] so that no one area becomes overly important making all other areas of the map relatively negligible
+        # This could have happened, for example, when the drone is stopped at one location for a long time.
+        map_copy = self._map.copy()
+        max_filter = self._map > self.max_certainty
+        min_filter = self._map < -self.max_certainty
+        map_copy[max_filter] = self.max_certainty
+        map_copy[min_filter] = -self.max_certainty
+        return map_copy
 
     def get_coordinate(self, coord: tuple[int, int, int]) -> np.ndarray:
         """
