@@ -24,8 +24,8 @@ class TestDevice:
 
 def test_map_update(map_inst, lidar_inst):
     map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
-    # print(map_inst.get())
-    # print(map_inst.get().shape)
+    print(map_inst.get()[:, :, 4])
+    print(map_inst.get().shape)
 
 def test_fov_mask(map_inst, lidar_inst):
     np.set_printoptions(threshold=sys.maxsize)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     mydar = Lidar(TestDevice(range_image), (0, 1))
     mymap = Mapping(250, 1)
     # test_initialise_blocks_in_range(mymap)
-    test_fov_mask(mymap, mydar)
+    # test_fov_mask(mymap, mydar)
     # test_range_mask(mymap, mydar)
-    # test_map_update(mymap, mydar)
+    test_map_update(mymap, mydar)
     print("Everything passed")

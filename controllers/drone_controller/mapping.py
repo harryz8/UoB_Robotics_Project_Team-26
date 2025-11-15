@@ -172,6 +172,10 @@ class Mapping:
         robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder
         return robot_loc
 
+    def is_in_block(self, block_index: np.ndarray, location_meters: np.ndarray) -> bool:
+        block_index_meters = blocks_to_meters(block_index, self.block_length)
+        return np.all((location_meters > (block_index_meters - block_index/2)) & (location_meters < (block_index_meters + block_index/2)), axis=1)
+
     def update(self, robot_loc: np.ndarray, robot_attitude: np.ndarray, lidar_inst: Lidar):
         """
         Update map after new lidar reading.
@@ -197,27 +201,39 @@ class Mapping:
         current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
         learning_blocks_indices = np.delete(learning_blocks_indices, current_index, axis=0)
 
-        # temp
-        temp_map = np.zeros_like(self._map)
-        for index in learning_blocks_indices:
-            temp_map[index[0], index[1], index[2]] = 1
-        print(temp_map[:, :, 4])
-
         # Get the range readings from the lidar
-        readings_xyz = lidar_inst.get_readings_coordinates_from_robot(robot_loc, robot_attitude)
+        readings_vec_from_robot = lidar_inst.get_readings_vector_from_robot(robot_attitude)
 
         for indices in learning_blocks_indices:
-            # Calculate new map value for specific index
-            diff = blocks_to_meters(indices, self.block_length) - readings_xyz
-            update_val = np.sqrt(np.sum(np.square(diff), axis=0))
-            too_far_filter = update_val > 0
-            obstruction_filter = np.logical_and(update_val <= 0, update_val > -1)
-            clear_filter = update_val <= -1
-            update_val[too_far_filter] = 0
-            update_val[obstruction_filter] = learning_rate / 2
-            update_val[clear_filter] = - (learning_rate / 2)
-            self._map[indices[0], indices[1], indices[2]] = self._map[indices[0], indices[1], indices[2]] + np.sum(
-                update_val) + 0  # <- prior = 0 for now
+            update_amount = 0
+            # is the reading in the block specified by indices
+            reading_disp = readings_vec_from_robot + robot_loc
+            reading_dist = np.linalg.norm(reading_disp, axis=1)
+            in_block = self.is_in_block(indices, reading_disp)
+            collisions = np.zeros_like(in_block) + learning_rate/2
+            update_amount += np.sum(collisions[in_block])
+            print(update_amount)
+
+            # is the block free
+            norm = reading_disp.T / reading_dist.T
+            block_step = norm.T * self.block_length
+            cur_disp = reading_disp - block_step
+            max_index = np.argmax(reading_dist)
+            while np.sum(np.sign(cur_disp[max_index])) * reading_dist[max_index] > 0:
+                in_block = self.is_in_block(indices, cur_disp)
+                collisions = np.zeros_like(in_block) - learning_rate / 2
+                over_mask = np.sum(np.sign(cur_disp), axis=1) * reading_dist < 0
+                collisions[over_mask] = 0
+                update_amount += np.sum(collisions[in_block])
+                cur_disp -= block_step
+            print(update_amount)
+
+            # Update map index
+            print(self._map[indices[0], indices[1], indices[2]])
+            self._map[indices[0], indices[1], indices[2]] = (self._map[indices[0], indices[1], indices[2]] +
+                                                             update_amount + 0)  # <- prior = 0 for now
+            print(self._map[indices[0], indices[1], indices[2]])
+            print("\n")
 
     def get(self) -> np.ndarray:
         return self._map
