@@ -62,10 +62,9 @@ class Mapping:
     _map = np.zeros((1, 1, 1), dtype='float64') + prior
     origin = np.array([0, 0, 0])  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
 
-    def __init__(self, block_length_mm: float, robot_size_blocks: int, maximum_certainty_log_odds: float):
+    def __init__(self, block_length_mm: float, robot_size_blocks: int):
         self.block_length = block_length_mm / 1000
         self.robot_size_blocks = robot_size_blocks
-        self.max_certainty = maximum_certainty_log_odds
 
     def _extend_to(self, coords: tuple[int, int, int]) -> np.ndarray:
         prev_start = self.origin.copy()
@@ -234,15 +233,21 @@ class Mapping:
             # Update map index
             self._map[indices[0], indices[1], indices[2]] = self._map[indices[0], indices[1], indices[2]] + update_amount
 
-    def get(self) -> np.ndarray:
+    def get(self, maximum_certainty_log_odds: float) -> np.ndarray:
         # Returns a copy of the map where the certainty is limited to [-self.max_certainty, self.max_certainty] so that no one area becomes overly important making all other areas of the map relatively negligible
         # This could have happened, for example, when the drone is stopped at one location for a long time.
         map_copy = self._map.copy()
-        max_filter = self._map > self.max_certainty
-        min_filter = self._map < -self.max_certainty
-        map_copy[max_filter] = self.max_certainty
-        map_copy[min_filter] = -self.max_certainty
+        max_filter = self._map > maximum_certainty_log_odds
+        min_filter = self._map < -maximum_certainty_log_odds
+        map_copy[max_filter] = maximum_certainty_log_odds
+        map_copy[min_filter] = -maximum_certainty_log_odds
         return map_copy
+
+    def get_normalised(self, maximum_certainty_log_odds: float) -> np.ndarray:
+        limit_map = self.get(maximum_certainty_log_odds)
+        most_distant = max(np.max(limit_map), abs(np.min(limit_map)))
+        map_copy = limit_map.copy()
+        return map_copy / most_distant
 
     def get_coordinate(self, coord: tuple[int, int, int]) -> np.ndarray:
         """
