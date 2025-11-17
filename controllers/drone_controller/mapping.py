@@ -46,11 +46,11 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
     return block_indices_array * block_length_meters
 
 
-def visually_test_map(map_inst, mask: np.ndarray, z_index: int):
+def visually_test_mask(map_inst, mask: np.ndarray) -> np.ndarray:
     temp_map = np.zeros_like(map_inst.get(10000))
     for index in map_inst.get_all_map_indexes()[mask]:
         temp_map[index[0], index[1], index[2]] = 1
-    print(temp_map[:, :, z_index])
+    return temp_map
 
 
 class Mapping:
