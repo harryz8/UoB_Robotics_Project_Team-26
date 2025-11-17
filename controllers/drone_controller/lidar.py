@@ -7,8 +7,8 @@ class Lidar:
     def __init__(self,
                  lidar_device,
                  axis_from_robot: tuple[int, int],
-                 object_detected_given_object_prob: int,
-                 empty_detected_given_empty_prob: int):
+                 object_detected_given_object_prob: float,
+                 empty_detected_given_empty_prob: float):
         self.device = lidar_device
         self.axis_from_robot: tuple[int, int] = axis_from_robot
         self.object_detection_accuracy = object_detected_given_object_prob

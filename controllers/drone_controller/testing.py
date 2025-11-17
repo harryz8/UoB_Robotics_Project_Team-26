@@ -5,8 +5,8 @@ import sys
 
 
 class TestDevice:
-    def __init__(self, range_image):
-        self.range_image = range_image
+    def __init__(self, l_range_image):
+        self.range_image = l_range_image
         pass
 
     def getFov(self):
@@ -23,9 +23,9 @@ class TestDevice:
 
 
 def test_map_update(map_inst, lidar_inst):
-    map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
+    map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, -np.pi/2]), lidar_inst=lidar_inst)
     print(map_inst.get(maximum_certainty_log_odds=10000)[:, :, 4])
-    print(map_inst.get().shape)
+    print(map_inst.get(maximum_certainty_log_odds=10000).shape)
 
 def test_fov_mask(map_inst, lidar_inst):
     np.set_printoptions(threshold=sys.maxsize)
