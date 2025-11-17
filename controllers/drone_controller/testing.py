@@ -23,9 +23,9 @@ class TestDevice:
 
 
 def test_map_update(map_inst, lidar_inst):
-    map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, -np.pi/2]), lidar_inst=lidar_inst)
-    print(map_inst.get(maximum_certainty_log_odds=10000)[:, :, 4])
-    print(map_inst.get(maximum_certainty_log_odds=10000).shape)
+    map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([np.pi/2, 0, 0]), lidar_inst=lidar_inst)
+    print(map_inst.get_normalised(maximum_certainty_log_odds=10000)[4, :, :])
+    print(map_inst.get_normalised(maximum_certainty_log_odds=10000).shape)
 
 def test_fov_mask(map_inst, lidar_inst):
     np.set_printoptions(threshold=sys.maxsize)
@@ -33,6 +33,7 @@ def test_fov_mask(map_inst, lidar_inst):
     mask = map_inst.get_lidar_fov_mask(robot_loc=robot_loc,
                                        robot_attitude=np.array([0, 0, 0]),
                                        lidar_inst=lidar_inst)
+    # print(map_inst.get_all_map_indexes()[mask])
     visually_test_map(map_inst, mask, 4)
     assert map_inst.get_all_map_indexes()[mask].shape[0] == 45, "test_fov_mask() failed."
 
@@ -55,8 +56,8 @@ if __name__ == "__main__":
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
     mymap = Mapping(250, 1)
-    # test_initialise_blocks_in_range(mymap)
-    # test_fov_mask(mymap, mydar)
-    # test_range_mask(mymap, mydar)
-    test_map_update(mymap, mydar)
+    test_initialise_blocks_in_range(mymap)
+    test_fov_mask(mymap, mydar)
+    test_range_mask(mymap, mydar)
+    # test_map_update(mymap, mydar)
     print("Everything passed")

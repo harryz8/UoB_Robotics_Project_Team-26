@@ -245,9 +245,8 @@ class Mapping:
 
     def get_normalised(self, maximum_certainty_log_odds: float) -> np.ndarray:
         limit_map = self.get(maximum_certainty_log_odds)
-        most_distant = max(np.max(limit_map), abs(np.min(limit_map)))
         map_copy = limit_map.copy()
-        return map_copy / most_distant
+        return map_copy / maximum_certainty_log_odds
 
     def get_coordinate(self, coord: tuple[int, int, int]) -> np.ndarray:
         """
