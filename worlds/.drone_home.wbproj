@@ -5,7 +5,7 @@ sceneTreePerspectives: 000000ff00000001000000030000002600000228000000fa010000000
 maximizedDockId: -1
 centralWidgetVisible: 1
 orthographicViewHeight: 1
-textFiles: 0 "controllers/drone_controller/mapping.py" "controllers/drone_controller/drone_controller.py" "controllers/drone_controller/lidar.py"
+textFiles: 1 "controllers/drone_controller/mapping.py" "controllers/drone_controller/drone_controller.py" "controllers/drone_controller/lidar.py"
 globalOptionalRendering: LidarRaysPaths
 consoles: Console:All:All
 consoles: Console:All:All
