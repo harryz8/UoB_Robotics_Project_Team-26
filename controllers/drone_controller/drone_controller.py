@@ -38,11 +38,18 @@ motors = [robot.getDevice("front left propeller"), robot.getDevice("front right 
 camera = robot.getDevice("camera")
 camera.enable(timestep)
 
-# getting lidar device
-lidar_device = robot.getDevice("lidar")
-lidar_device.enable(timestep)
-lidar_inst: Lidar = Lidar(lidar_device,
+# getting lidar devices
+horizontal_lidar_device = robot.getDevice("horizontal_lidar")
+horizontal_lidar_device.enable(timestep)
+horizontal_lidar: Lidar = Lidar(horizontal_lidar_device,
                           axis_from_robot=(0, 1),
+                          object_detected_given_object_prob=0.9,  # to be determined
+                          empty_detected_given_empty_prob=0.9  # to be determined
+                          )
+vertical_lidar_device = robot.getDevice("vertical_lidar")
+vertical_lidar_device.enable(timestep)
+vertical_lidar: Lidar = Lidar(vertical_lidar_device,
+                          axis_from_robot=(0, 2),
                           object_detected_given_object_prob=0.9,  # to be determined
                           empty_detected_given_empty_prob=0.9  # to be determined
                           )
@@ -58,7 +65,8 @@ prints = 10
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
     key = keyboard.getKey()
-    mapping_inst.update(np.array([0, 0, 0]), np.array([0, 0, 0]), lidar_inst)
+    mapping_inst.update(np.array([0, 0, 0]), np.array([0, 0, 0]), horizontal_lidar)
+    mapping_inst.update(np.array([0, 0, 0]), np.array([0, 0, 0]), vertical_lidar)
     if key == ord("W"):
         pass
         #go forward

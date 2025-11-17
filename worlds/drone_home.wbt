@@ -60,17 +60,23 @@ Floor {
 }
 Mavic2Pro {
   hidden position_0_0 5.556055606598351e-09
-  hidden rotation_6 0 0 1 6.100383249061942e-07
-  hidden position_6_0 -1.2495730583666546e-08
-  hidden rotation_7 0 -0.9999999999999999 0 7.80001421469598e-07
-  hidden position_7_0 -4.766565474400053e-09
+  hidden rotation_7 0 0 1 6.100383249061942e-07
+  hidden position_7_0 -1.2495730583666546e-08
+  hidden rotation_8 0 -0.9999999999999999 0 7.80001421469598e-07
+  hidden position_8_0 -4.766565474400053e-09
   translation -0.11269913036364514 0.13742780160893867 0.07607221846732098
   rotation 5.2072285333450375e-05 -0.999999943299143 -0.00033270134930938163 0.07011059685776817
   controller "drone_controller"
   bodySlot [
     Lidar {
       translation 0 0 0.0084
-      rotation 0 0 1 3.14
+      rotation 1 0 0 1.5708
+      name "vertical_lidar"
+      numberOfLayers 1
+    }
+    Lidar {
+      translation 0 0 0.0084
+      name "horizontal_lidar"
       horizontalResolution 128
       numberOfLayers 1
     }
