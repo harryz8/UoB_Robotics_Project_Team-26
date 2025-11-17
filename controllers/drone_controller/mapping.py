@@ -120,7 +120,7 @@ class Mapping:
         # get FOV angles
         component_triangle_adj = np.cos(lidar_inst.device.getFov() / 2) * lidar_inst.device.getMaxRange()
         roll_triangle_hyp = np.sin(lidar_inst.device.getFov() / 2) * lidar_inst.device.getMaxRange()
-        fov_components: np.ndarray = angle_in_given_plane_to_two_components(robot_attitude[1].item(),
+        fov_components: np.ndarray = angle_in_given_plane_to_two_components(robot_attitude[lidar_inst.axis_from_robot[0]].item(),
                                                                             roll_triangle_hyp,
                                                                             component_triangle_adj)
 
@@ -131,28 +131,33 @@ class Mapping:
                                              (lidar_inst.axis_from_robot[1] + 1) % 3))
 
         # calculate filter
-        if (robot_attitude[2].item() - fov_components[0].item()) % (2*np.pi) > (
-                robot_attitude[2].item() + fov_components[0].item()) % (2*np.pi):
+        yaw_axis = -1
+        for axis in range(0, 3):
+            if not (axis in lidar_inst.axis_from_robot):
+                yaw_axis = axis
+                break
+        if (robot_attitude[yaw_axis].item() - fov_components[0].item()) % (2*np.pi) > (
+                robot_attitude[yaw_axis].item() + fov_components[0].item()) % (2*np.pi):
             yaw_filter = np.logical_or(
                 (yaw_angles % (2*np.pi)) >= (
-                        (robot_attitude[2].item() - fov_components[0].item()) % (2*np.pi)),
+                        (robot_attitude[yaw_axis].item() - fov_components[0].item()) % (2*np.pi)),
                 (yaw_angles % (2*np.pi)) <= (
-                        (robot_attitude[2].item() + fov_components[0].item()) % (2*np.pi)))
+                        (robot_attitude[yaw_axis].item() + fov_components[0].item()) % (2*np.pi)))
         else:
             yaw_filter = np.logical_and(
                 (yaw_angles % (2 * np.pi)) >= (
-                            (robot_attitude[2].item() - fov_components[0].item()) % (2 * np.pi)),
+                            (robot_attitude[yaw_axis].item() - fov_components[0].item()) % (2 * np.pi)),
                 (yaw_angles % (2 * np.pi)) <= (
-                            (robot_attitude[2].item() + fov_components[0].item()) % (2 * np.pi)))
+                            (robot_attitude[yaw_axis].item() + fov_components[0].item()) % (2 * np.pi)))
 
-        if (robot_attitude[0].item() - fov_components[1].item()) % (2*np.pi) > (robot_attitude[0].item() + fov_components[1].item()) % (2*np.pi):
+        if (robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % (2*np.pi) > (robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % (2*np.pi):
             pitch_filter = np.logical_or(
-                (pitch_angles % (2*np.pi)) >= ((robot_attitude[0].item() - fov_components[1].item()) % (2*np.pi)),
-                (pitch_angles % (2*np.pi)) <= ((robot_attitude[0].item() + fov_components[1].item()) % (2*np.pi)))
+                (pitch_angles % (2*np.pi)) >= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % (2*np.pi)),
+                (pitch_angles % (2*np.pi)) <= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % (2*np.pi)))
         else:
             pitch_filter = np.logical_and(
-                (pitch_angles % np.pi) >= ((robot_attitude[0].item() - fov_components[1].item()) % np.pi),
-                (pitch_angles % np.pi) <= ((robot_attitude[0].item() + fov_components[1].item()) % np.pi))
+                (pitch_angles % np.pi) >= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % np.pi),
+                (pitch_angles % np.pi) <= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % np.pi))
 
         # filter map indexes to get those within lidar FOV
         fov_mask = yaw_filter.flatten() & pitch_filter.flatten()
@@ -183,7 +188,7 @@ class Mapping:
         :param lidar_inst: the Lidar object to take measurements from
         :param robot_loc: an np.ndarray with all 3 measurements for the displacement along the different axis in meters.
                           In the order x, y, z
-        :param robot_attitude: The pitch, roll and yaw of the robot (in that order). Measured in radians
+        :param robot_attitude: The roll, pitch and yaw of the robot (in that order). Measured in radians
         
         :return: None
         """

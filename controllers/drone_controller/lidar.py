@@ -18,8 +18,13 @@ class Lidar:
         return np.array(self.device.getRangeImage())
 
     def get_readings_with_angle(self, robot_attitude: np.ndarray) -> np.ndarray:
-        return np.column_stack((self.get_readings(), np.linspace(robot_attitude[2].item() - (self.device.getFov() / 2),
-                                                                 robot_attitude[2].item() + (self.device.getFov() / 2),
+        yaw_axis = -1
+        for axis in range(0, 3):
+            if not (axis in self.axis_from_robot):
+                yaw_axis = axis
+                break
+        return np.column_stack((self.get_readings(), np.linspace(robot_attitude[yaw_axis].item() - (self.device.getFov() / 2),
+                                                                 robot_attitude[yaw_axis].item() + (self.device.getFov() / 2),
                                                                  self.device.getHorizontalResolution())))
 
     def get_readings_vector_from_robot(self, robot_attitude: np.ndarray):
