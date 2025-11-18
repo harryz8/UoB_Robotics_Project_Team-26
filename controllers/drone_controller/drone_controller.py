@@ -82,6 +82,7 @@ vertical_lidar: Lidar = Lidar(vertical_lidar_device,
 # create the map in a Mapping object
 mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
 
+<<<<<<< HEAD
 #get inertial unit
 imu = robot.getDevice("inertial unit")
 imu.enable(timestep)
@@ -100,6 +101,8 @@ prints = 10
 np.set_printoptions(edgeitems=30, linewidth=100000,
                     formatter=dict(float=lambda x: "%.3g" % x))
 
+=======
+>>>>>>> aa88263 (removed print statements for debugging)
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
@@ -144,19 +147,18 @@ while robot.step(timestep) != -1:
     
     #...
     elif key == ord("R"):
-        # something like this
-        """ path_planner.shortest_path(meters_to_blocks(localisation.get_coordinates(), BLOCK_LENGTH),
-                                   mapping_inst.origin,
-                                   mapping_inst.get()) """
         print(path_planner.test())
         pass
         # Ben
+<<<<<<< HEAD
     # For debugging
     if (prints > 0) and (loops % prints == 0):
         pass
         # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
         print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
     loops += 1
+=======
+>>>>>>> aa88263 (removed print statements for debugging)
 
     #localisation -> mapping -> database of map
     pass
