@@ -85,10 +85,9 @@ class Mapping:
         :param coords: The coordinates that need to be within the new map
         :return: The vector by which the map's origin has drifted
         """
+        print(self._map.shape)
         map_shape = (self._map.shape - np.ones(3)).astype('i')
-        if (np.abs(np.minimum(0, coords[0])) == 0 and np.maximum(0, coords[0] - map_shape[0]) == 0) and (
-            np.abs(np.minimum(0, coords[1])) == 0 and np.maximum(0, coords[1] - map_shape[1]) == 0) and (
-            np.abs(np.minimum(0, coords[2])) == 0 and np.maximum(0, coords[2] - map_shape[2]) == 0):
+        if np.all(np.array(coords) >= 0) and np.all((np.array(coords) - map_shape) <= 0):
             # When map doesn't need to be extended
             print("No Ext")
             return np.zeros_like(self.origin)
@@ -99,6 +98,7 @@ class Mapping:
             (np.abs(np.minimum(0, coords[1])), np.maximum(0, coords[1] - map_shape[1])),
             (np.abs(np.minimum(0, coords[2])), np.maximum(0, coords[2] - map_shape[2]))),
                            mode='constant', constant_values=self.prior)
+        print("2", self._map.shape)
         return self.origin - prev_start
 
     def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
