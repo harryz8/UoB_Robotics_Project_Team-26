@@ -3,13 +3,13 @@ from mapping import *
 from path_planner import Path_Planner
 from lidar import Lidar
 import numpy as np
+import math
 
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
-import math
 
-BLOCK_LENGTH: float = 350  # mm
-ROBOT_SIZE: int = 1  # block
+BLOCK_LENGTH: float = 350  # The length of one side of the cube shaped 'block' which the world is split into in the map. In mm
+ROBOT_SIZE: int = 1  # How many blocks the lidar takes up. In blocks
 
 #clamps values
 def clamp(value, low, high):
@@ -34,7 +34,6 @@ path_planner: Path_Planner = Path_Planner()
 #  ds.enable(timestep)
 
 # getting all motors
-
 front_left_motor = robot.getDevice("front left propeller")
 front_right_motor = robot.getDevice("front right propeller")
 rear_left_motor = robot.getDevice("rear left propeller")
@@ -63,7 +62,7 @@ target_yaw = 0.0
 camera = robot.getDevice("camera")
 camera.enable(timestep)
 
-# getting lidar devices
+# getting lidar devices and initialising lidar objects
 horizontal_lidar_device = robot.getDevice("horizontal_lidar")
 horizontal_lidar_device.enable(timestep)
 horizontal_lidar: Lidar = Lidar(horizontal_lidar_device,
@@ -79,14 +78,8 @@ vertical_lidar: Lidar = Lidar(vertical_lidar_device,
                           empty_detected_given_empty_prob=0.9  # to be determined
                           )
 
-# create the map
+# create the map in a Mapping object
 mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
-
-# for debugging
-loops = 0
-prints = 10
-np.set_printoptions(edgeitems=30, linewidth=100000,
-                    formatter=dict(float=lambda x: "%.3g" % x))
 
 #get inertial unit
 imu = robot.getDevice("inertial unit")
@@ -100,16 +93,20 @@ gps.enable(timestep)
 gyro = robot.getDevice("gyro")
 gyro.enable(timestep)
 
+# for debugging
+# loops = 0
+# prints = 10
+# np.set_printoptions(edgeitems=30, linewidth=100000,
+#                     formatter=dict(float=lambda x: "%.3g" % x))
+
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-<<<<<<< HEAD
     key = keyboard.getKey()
-    # mapping_inst.update(np.array([0, 0, 0]), np.array([0, 0, 0]), horizontal_lidar)
-    mapping_inst.update(np.array([0, 0, 0]), np.array([0, 0, 0]), vertical_lidar)
-    if key == ord("W"):
-=======
-    key=keyboard.getKey()
+
+    # Update the map given readings from both LIDARs
+    mapping_inst.update(np.array(gps.getValues()), np.array(gyro.getValues()), horizontal_lidar)
+    mapping_inst.update(np.array(gps.getValues()), np.array(gyro.getValues()), vertical_lidar)
     
     # read sensors
     roll, pitch, yaw = imu.getRollPitchYaw()
@@ -131,7 +128,6 @@ while robot.step(timestep) != -1:
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
     if (key == ord("W")):
->>>>>>> main
         pass
     
     #...
@@ -144,11 +140,11 @@ while robot.step(timestep) != -1:
         pass
         # Ben
     # For debugging
-    if (prints > 0) and (loops % prints == 0):
-        pass
-        print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
-        # print(mapping_inst.get().shape)
-    loops += 1
+    # if (prints > 0) and (loops % prints == 0):
+    #     pass
+    #     print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
+    #     # print(mapping_inst.get().shape)
+    # loops += 1
 
     #localisation -> mapping -> database of map
     pass

@@ -8,13 +8,22 @@ def _angle_calc_arr(robot_loc_meters: np.ndarray,
                     block_length_meters: float,
                     axes: tuple[int, int] = (0, 1)
                     ) -> np.ndarray:
-    # calculates angle from x-axis for vector between these two points when spec_loc_blocks is an np.ndarray and robot_loc is in meters not blocks
+    """
+    Calculates angle for vector between these two points in the plane axes[0] by axes[1] when spec_loc_blocks is an np.ndarray and robot_loc is in meters not blocks
+    :param robot_loc_meters: the x, y, z displacements of the drone from its original position. In meters
+    :param spec_loc_blocks: The specified location (or block) that is the other end of the vector to which we are measuring the angle. In blocks
+    :param block_length_meters: The length of one side of the blocks in meters
+    :param axes: The two axis in which plane the lidar is acting, corresponding to the drone
+    :return: the angle in radians
+    """
+    # Convert spec_loc_blocks to meters
     lengths = spec_loc_blocks - (robot_loc_meters / block_length_meters)
 
     # handles precision error on zeros
     precision_error_mask = np.isclose(lengths, 0)
     lengths[precision_error_mask] = 0
 
+    # calculates the angle
     return np.arctan2([lengths[:, axes[1]]], [lengths[:, axes[0]]])
 
 

@@ -72,13 +72,17 @@ Mavic2Pro {
       translation 0 0 0.0084
       rotation 1 0 0 1.5708
       name "vertical_lidar"
+      fieldOfView 4.71239
       numberOfLayers 1
+      maxRange 25
     }
     Lidar {
       translation 0 0 0.0084
       name "horizontal_lidar"
       horizontalResolution 128
+      fieldOfView 4.71239
       numberOfLayers 1
+      maxRange 25
     }
   ]
 }
