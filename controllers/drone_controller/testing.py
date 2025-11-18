@@ -30,8 +30,8 @@ class TestDevice:
 
 
 def test_map_update(map_inst, lidar_inst):
-    map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([np.pi/2, 0, 0]), lidar_inst=lidar_inst)
-    print(map_inst.get_normalised(maximum_certainty_log_odds=10000)[4, :, :])
+    map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
+    print(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4])
     print(map_inst.get_normalised(maximum_certainty_log_odds=10000).shape)
 
 def test_fov_mask(map_inst, lidar_inst):

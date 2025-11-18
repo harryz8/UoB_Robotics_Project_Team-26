@@ -242,6 +242,11 @@ class Mapping:
         return map_copy
 
     def get_normalised(self, maximum_certainty_log_odds: float) -> np.ndarray:
+        """
+        Get the occupancy map where all values range between -1 and 1 inclusive
+        :param maximum_certainty_log_odds: the most outlying value for all log_odds to be scaled to. No value will be allowed to be greater that it or less than its negative.
+        :return: the occupancy map where all values range between -1 and 1 inclusive
+        """
         limit_map = self.get(maximum_certainty_log_odds)
         map_copy = limit_map.copy()
         return map_copy / maximum_certainty_log_odds
@@ -249,5 +254,7 @@ class Mapping:
     def get_coordinate(self, coord: tuple[int, int, int]) -> np.ndarray:
         """
         Returns occupancy for specified co-ordinate
+        :param coord: tuple[int, int, int] : the specified co-ordinate
+        :return: the occupancy log odd for specified co-ordinate
         """
         return self._map[coord[0], coord[1], coord[2]]

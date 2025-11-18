@@ -60,6 +60,8 @@ mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
 # for debugging
 loops = 0
 prints = 10
+np.set_printoptions(edgeitems=30, linewidth=100000,
+                    formatter=dict(float=lambda x: "%.3g" % x))
 
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
