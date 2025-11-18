@@ -1,6 +1,6 @@
 """drone_controller controller."""
-#from mapping import Mapping
-#from path_planner import Path_Planner
+from mapping import Mapping
+from path_planner import Path_Planner
 
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
@@ -23,8 +23,8 @@ keyboard=Keyboard()
 keyboard.enable(timestep)
 
 # create the map
-#mapping : Mapping = Mapping(BLOCK_LENGTH)
-#path_planner : Path_Planner = Path_Planner()
+mapping : Mapping = Mapping(BLOCK_LENGTH)
+path_planner : Path_Planner = Path_Planner()
 
 # You should insert a getDevice-like function in order to get the
 # instance of a device of the robot. Something like:
