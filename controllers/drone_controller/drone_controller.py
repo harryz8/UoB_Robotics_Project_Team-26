@@ -53,9 +53,19 @@ vertical_gain = 3.0
 roll_gain = 50.0                  
 pitch_gain = 30.0
 yaw_gain = 15.0
+x_gain = 0.75
 
 target_altitude = 1.0
 target_yaw = 0.0
+
+target_x = 0.0
+x_kp = 0.3
+x_ki = 999.9
+x_kd = 0.05
+
+x_integral = 0.0
+x_prev_error = 0.0
+max_pitch_correction = 0.1
     
 # getting camera device
 camera = robot.getDevice("camera")
@@ -78,6 +88,9 @@ gps.enable(timestep)
 gyro = robot.getDevice("gyro")
 gyro.enable(timestep)
 
+#prev x coordinate for velocity calc
+x_prev = gps.getValues()[0]
+
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
@@ -86,14 +99,26 @@ while robot.step(timestep) != -1:
     # read sensors
     roll, pitch, yaw = imu.getRollPitchYaw()
     altitude = gps.getValues()[2]
-    roll_velocity, pitch_velocity, _ = gyro.getValues()
 
     # stabilization
     roll_input = roll_gain * clamp(roll, -1.0, 1.0)
     pitch_input = pitch_gain * clamp(pitch, -1.0, 1.0)
     vertical_input = vertical_gain * (clamp(target_altitude - altitude + vertical_offset, -1.0, 1.0)) ** 3
-    
-     # wrap yaw error to [-pi, pi]
+
+    # --- X-axis PID control ---
+    x_current = gps.getValues()[0]
+    x_error = target_x - x_current
+
+    x_integral += x_error
+    x_derivative = x_error - x_prev_error
+    x_prev_error = x_error
+
+    # PID output in radians for safe pitch correction
+    pitch_correction = x_kp * x_error + x_ki * x_integral + x_kd * x_derivative
+    pitch_correction = clamp(pitch_correction, -max_pitch_correction, max_pitch_correction)
+
+    pitch_input += pitch_correction
+
     yaw_error = math.atan2(math.sin(target_yaw - yaw), math.cos(target_yaw - yaw))
     yaw_input = yaw_gain * clamp(yaw_error, -1.0, 1.0)
 
@@ -102,6 +127,8 @@ while robot.step(timestep) != -1:
     fr_input = vertical_thrust_base + vertical_input + roll_input + pitch_input + yaw_input
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
+
+    
     if (key == ord("W")):
         pass
     
