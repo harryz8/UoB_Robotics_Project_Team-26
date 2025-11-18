@@ -4,6 +4,13 @@ import numpy as np
 import sys
 
 
+def visually_test_mask(map_inst: Mapping, mask: np.ndarray) -> np.ndarray:
+    temp_map = np.zeros_like(map_inst.get(10000))
+    for index in map_inst.get_all_map_indexes()[mask]:
+        temp_map[index[0], index[1], index[2]] = 1
+    return temp_map
+
+
 class TestDevice:
     def __init__(self, l_range_image):
         self.range_image = l_range_image

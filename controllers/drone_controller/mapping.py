@@ -46,11 +46,9 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
     return block_indices_array * block_length_meters
 
 
-def visually_test_mask(map_inst, mask: np.ndarray) -> np.ndarray:
-    temp_map = np.zeros_like(map_inst.get(10000))
-    for index in map_inst.get_all_map_indexes()[mask]:
-        temp_map[index[0], index[1], index[2]] = 1
-    return temp_map
+def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_length: float) -> bool:
+    block_index_meters = blocks_to_meters(block_index, block_length)
+    return np.all((location_meters > (block_index_meters - block_length/2)) & (location_meters < (block_index_meters + block_length/2)), axis=1)
 
 
 class Mapping:
@@ -176,10 +174,6 @@ class Mapping:
         robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder
         return robot_loc
 
-    def is_in_block(self, block_index: np.ndarray, location_meters: np.ndarray) -> bool:
-        block_index_meters = blocks_to_meters(block_index, self.block_length)
-        return np.all((location_meters > (block_index_meters - self.block_length/2)) & (location_meters < (block_index_meters + self.block_length/2)), axis=1)
-
     def update(self, robot_loc: np.ndarray, robot_attitude: np.ndarray, lidar_inst: Lidar):
         """
         Update map after new lidar reading.
@@ -217,7 +211,7 @@ class Mapping:
             # is the reading in the block specified by indices
             reading_disp = readings_vec_from_robot + robot_loc
             reading_dist = np.linalg.norm(reading_disp, axis=1)
-            in_block = self.is_in_block(indices, reading_disp)
+            in_block = is_in_block(indices, reading_disp, self.block_length)
             collisions = np.zeros_like(in_block) + learning_rate_when_object
             update_amount += np.sum(collisions[in_block])
 
@@ -227,7 +221,7 @@ class Mapping:
             cur_disp = reading_disp - block_step
             max_index = np.argmax(reading_dist)
             while np.sum(np.sign(cur_disp[max_index])) * reading_dist[max_index] > 0:
-                in_block = self.is_in_block(indices, cur_disp)
+                in_block = is_in_block(indices, cur_disp, self.block_length)
                 collisions = np.zeros_like(in_block) + learning_rate_when_empty
                 over_mask = np.sum(np.sign(cur_disp), axis=1) * reading_dist < 0
                 collisions[over_mask] = 0
