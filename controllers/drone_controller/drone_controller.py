@@ -79,7 +79,7 @@ vertical_lidar: Lidar = Lidar(vertical_lidar_device,
                           )
 
 # create the map in a Mapping object
-mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
+mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, (50, 50, 50))
 
 #get inertial unit
 imu = robot.getDevice("inertial unit")

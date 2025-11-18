@@ -62,20 +62,37 @@ def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_leng
 
 class Mapping:
     """
-    Occupancy grid map
+    Class that builds and maintains an occupancy grid map.
     """
 
     prior = 0  # priors are 0
-    _map = np.zeros((1, 1, 1), dtype='float64') + prior
     origin = np.array([0, 0, 0])  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
 
-    def __init__(self, block_length_mm: float, robot_size_blocks: int):
+    def __init__(self, block_length_mm: float, robot_size_blocks: int, map_init_shape: tuple[int, int, int] = (1,1,1)):
+        """
+        Creates the Mapping object
+        :param block_length_mm: the length of a side of the cube shaped blocks that the world is split into for the map
+        :param robot_size_blocks: The size of the longest side of the robot in blocks
+        :param map_init_shape: the size of the initial map. A balance must be struck, because too large of a map causes too much memory to be used whereas too small of a map causes lots of map copy operations to increase its size later on
+        """
+        self._map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
         self.block_length = block_length_mm / 1000
         self.robot_size_blocks = robot_size_blocks
 
     def _extend_to(self, coords: tuple[int, int, int]) -> np.ndarray:
-        prev_start = self.origin.copy()
+        """
+        Function to exchange the map with a larger copy
+        :param coords: The coordinates that need to be within the new map
+        :return: The vector by which the map's origin has drifted
+        """
         map_shape = (self._map.shape - np.ones(3)).astype('i')
+        if (np.abs(np.minimum(0, coords[0])) == 0 and np.maximum(0, coords[0] - map_shape[0]) == 0) and (
+            np.abs(np.minimum(0, coords[1])) == 0 and np.maximum(0, coords[1] - map_shape[1]) == 0) and (
+            np.abs(np.minimum(0, coords[2])) == 0 and np.maximum(0, coords[2] - map_shape[2]) == 0):
+            # When map doesn't need to be extended
+            print("No Ext")
+            return np.zeros_like(self.origin)
+        prev_start = self.origin.copy()
         self.origin = self.origin + np.abs(np.minimum(0, coords))
         self._map = np.pad(self._map, pad_width=(
             (np.abs(np.minimum(0, coords[0])), np.maximum(0, coords[0] - map_shape[0])),
