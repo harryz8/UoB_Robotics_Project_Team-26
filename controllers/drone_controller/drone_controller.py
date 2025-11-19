@@ -1,6 +1,7 @@
 """drone_controller controller."""
 from mapping import Mapping
 from path_planner import Path_Planner
+from Ava_Drone_localization import *
 
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
