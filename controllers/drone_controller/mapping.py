@@ -66,7 +66,6 @@ class Mapping:
     """
 
     prior = 0  # priors are 0
-    origin = np.array([0, 0, 0])  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
 
     def __init__(self, block_length_mm: float, robot_size_blocks: int, map_init_shape: tuple[int, int, int] = (1,1,1)):
         """
@@ -75,7 +74,9 @@ class Mapping:
         :param robot_size_blocks: The size of the longest side of the robot in blocks
         :param map_init_shape: the size of the initial map. A balance must be struck, because too large of a map causes too much memory to be used whereas too small of a map causes lots of map copy operations to increase its size later on
         """
-        self._map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
+        self.__map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
+        self.__origin = np.array(
+            [0, 0, 0])  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
         self.block_length = block_length_mm / 1000
         self.robot_size_blocks = robot_size_blocks
 
@@ -85,21 +86,21 @@ class Mapping:
         :param coords: The coordinates that need to be within the new map
         :return: The vector by which the map's origin has drifted
         """
-        print(self._map.shape)
-        map_shape = (self._map.shape - np.ones(3)).astype('i')
+        print(self.__map.shape)
+        map_shape = (self.__map.shape - np.ones(3)).astype('i')
         if np.all(np.array(coords) >= 0) and np.all((np.array(coords) - map_shape) <= 0):
             # When map doesn't need to be extended
             print("No Ext")
-            return np.zeros_like(self.origin)
-        prev_start = self.origin.copy()
-        self.origin = self.origin + np.abs(np.minimum(0, coords))
-        self._map = np.pad(self._map, pad_width=(
+            return np.zeros_like(self.__origin)
+        prev_start = self.__origin.copy()
+        self.__origin = self.__origin + np.abs(np.minimum(0, coords))
+        self.__map = np.pad(self.__map, pad_width=(
             (np.abs(np.minimum(0, coords[0])), np.maximum(0, coords[0] - map_shape[0])),
             (np.abs(np.minimum(0, coords[1])), np.maximum(0, coords[1] - map_shape[1])),
             (np.abs(np.minimum(0, coords[2])), np.maximum(0, coords[2] - map_shape[2]))),
-                           mode='constant', constant_values=self.prior)
-        print("2", self._map.shape)
-        return self.origin - prev_start
+                            mode='constant', constant_values=self.prior)
+        print("2", self.__map.shape)
+        return self.__origin - prev_start
 
     def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
         new_blocks_max_dist: int = math.ceil(radius / self.block_length)
@@ -115,9 +116,9 @@ class Mapping:
                                                                      "i") + new_blocks_max_dist + 1)]
         change_vec = np.zeros(3)
         for new_block in [min(new_blocks), max(new_blocks)]:
-            if not ((new_block[0] + change_vec[0] < self._map.shape[0]) and (
-                     new_block[1] + change_vec[1] < self._map.shape[1]) and (
-                     new_block[2] + change_vec[2] < self._map.shape[2]) and (
+            if not ((new_block[0] + change_vec[0] < self.__map.shape[0]) and (
+                     new_block[1] + change_vec[1] < self.__map.shape[1]) and (
+                     new_block[2] + change_vec[2] < self.__map.shape[2]) and (
                      new_block[0] + change_vec[0] >= 0) and (
                      new_block[1] + change_vec[1] >= 0) and (
                      new_block[2] + change_vec[2] >= 0)):
@@ -129,9 +130,9 @@ class Mapping:
 
     def get_all_map_indexes(self) -> np.ndarray:
         return np.array(np.meshgrid(
-            np.arange(self._map.shape[0]),
-            np.arange(self._map.shape[1]),
-            np.arange(self._map.shape[2])
+            np.arange(self.__map.shape[0]),
+            np.arange(self.__map.shape[1]),
+            np.arange(self.__map.shape[2])
         )).T.reshape(-1, 3)
 
     def get_lidar_fov_mask(self,
@@ -194,7 +195,7 @@ class Mapping:
         # extend map
         robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length)
         robot_loc_remainder = robot_loc % self.block_length
-        robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.origin,
+        robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.__origin,
                                                           radius=lidar_inst.device.getMaxRange())
         robot_loc_blocks = robot_map_index  # - self.origin
         robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder
@@ -255,14 +256,14 @@ class Mapping:
                 cur_disp -= block_step
 
             # Update map index
-            self._map[indices[0], indices[1], indices[2]] = self._map[indices[0], indices[1], indices[2]] + update_amount
+            self.__map[indices[0], indices[1], indices[2]] = self.__map[indices[0], indices[1], indices[2]] + update_amount
 
     def get(self, maximum_certainty_log_odds: float) -> np.ndarray:
         # Returns a copy of the map where the certainty is limited to [-self.max_certainty, self.max_certainty] so that no one area becomes overly important making all other areas of the map relatively negligible
         # This could have happened, for example, when the drone is stopped at one location for a long time.
-        map_copy = self._map.copy()
-        max_filter = self._map > maximum_certainty_log_odds
-        min_filter = self._map < -maximum_certainty_log_odds
+        map_copy = self.__map.copy()
+        max_filter = self.__map > maximum_certainty_log_odds
+        min_filter = self.__map < -maximum_certainty_log_odds
         map_copy[max_filter] = maximum_certainty_log_odds
         map_copy[min_filter] = -maximum_certainty_log_odds
         return map_copy
@@ -283,4 +284,10 @@ class Mapping:
         :param coord: tuple[int, int, int] : the specified co-ordinate
         :return: the occupancy log odd for specified co-ordinate
         """
-        return self._map[coord[0], coord[1], coord[2]]
+        return self.__map[coord[0], coord[1], coord[2]]
+
+    def get_origin(self) -> np.ndarray:
+        return self.__origin
+
+    def __str__(self):
+        return str(self.__map)
