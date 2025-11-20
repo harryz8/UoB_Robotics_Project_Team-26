@@ -278,15 +278,16 @@ class Mapping:
         map_copy = limit_map.copy()
         return map_copy / maximum_certainty_log_odds
 
-    def get_coordinate(self, coord: tuple[int, int, int]) -> np.ndarray:
+    def __getitem__(self, key: tuple[int, int, int]) -> np.ndarray:
         """
         Returns occupancy for specified co-ordinate
-        :param coord: tuple[int, int, int] : the specified co-ordinate
+        :param key: tuple[int, int, int] : the specified co-ordinate
         :return: the occupancy log odd for specified co-ordinate
         """
-        return self.__map[coord[0], coord[1], coord[2]]
+        return self.__map[key[0], key[1], key[2]]
 
-    def get_origin(self) -> np.ndarray:
+    @property
+    def origin(self) -> np.ndarray:
         return self.__origin
 
     def __str__(self):
