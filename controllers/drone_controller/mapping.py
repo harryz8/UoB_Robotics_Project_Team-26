@@ -28,11 +28,10 @@ def _angle_calc_arr(robot_loc_meters: np.ndarray,
     return np.arctan2([lengths[:, axes[1]]], [lengths[:, axes[0]]])
 
 
-def angle_in_given_plane_to_two_components(
-        roll_angle_radians: float,
-        roll_triangle_hyp: np.ndarray,
-        component_triangle_adj: np.ndarray
-) -> np.ndarray:
+def angle_in_given_plane_to_two_components(roll_angle_radians: float,
+                                           roll_triangle_hyp: np.ndarray,
+                                           component_triangle_adj: np.ndarray
+                                           ) -> np.ndarray:
     first_roll_triangle_adj = roll_triangle_hyp * np.cos(roll_angle_radians)
     ang = np.round(np.cos(np.pi / 2 - roll_angle_radians), 15)
     if ang == 0.0:
