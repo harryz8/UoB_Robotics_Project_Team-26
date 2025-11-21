@@ -141,7 +141,14 @@ class Mapping:
                            map_indexes: np.ndarray,
                            lidar_inst
                            ) -> np.ndarray:
-
+        """
+        Calculates a mask for the list of all map indexes that only keeps the ones in the FOV angle of the lidar, and on that plane
+        :param robot_loc: the current location of the robot in meters
+        :param robot_attitude: the roll, pitch and yaw of the robot in radians
+        :param map_indexes: the list of all map indexes
+        :param lidar_inst: the Lidar object you're referring to
+        :return: a mask for the list of all map indexes that only keeps the ones in the FOV angle, and on that plane
+        """
         # get FOV angles
         component_triangle_adj = np.cos(lidar_inst.device.getFov() / 2) * lidar_inst.device.getMaxRange()
         roll_triangle_hyp = np.sin(lidar_inst.device.getFov() / 2) * lidar_inst.device.getMaxRange()
@@ -213,9 +220,14 @@ class Mapping:
         
         :return: None
         """
+
+        # start thread to process and get Lidar readings
+        process_lidar_readings = threading.Thread(target=lidar_inst.update_current_readings, args=(robot_attitude,))  # https://www.w3schools.com/python/gloss_python_tuple_one_item.asp
+        process_lidar_readings.start()
+
+        # calculate and set the learning rates for how much we trust the readings and extend map ready for updating if necessary
         learning_rate_when_object: float = np.log(lidar_inst.object_detection_accuracy/(1-lidar_inst.empty_detection_accuracy))
         learning_rate_when_empty: float = np.log((1-lidar_inst.object_detection_accuracy)/lidar_inst.empty_detection_accuracy)
-
         robot_loc = self.prepare_map_and_update_location(robot_loc, lidar_inst)
 
         # ---- update map ----
@@ -232,7 +244,8 @@ class Mapping:
         learning_blocks_indices = np.delete(learning_blocks_indices, current_index, axis=0)
 
         # Get the range readings from the lidar
-        readings_vec_from_robot = lidar_inst.get_readings_vector_from_robot(robot_attitude)
+        process_lidar_readings.join()
+        readings_vec_from_robot = lidar_inst.current_readings
 
         # i = 0
         for indices in learning_blocks_indices:

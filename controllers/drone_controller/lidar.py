@@ -4,6 +4,8 @@ import mapping
 
 class Lidar:
 
+    __current_readings: np.ndarray = np.empty(0)  # initialise empty array
+
     def __init__(self,
                  lidar_device,
                  axis_from_robot: tuple[int, int],
@@ -17,7 +19,7 @@ class Lidar:
     def get_readings(self) -> np.ndarray:
         return np.array(self.device.getRangeImage())
 
-    def get_readings_with_angle(self, robot_attitude: np.ndarray) -> np.ndarray:
+    def _get_readings_with_angle(self, robot_attitude: np.ndarray) -> np.ndarray:
         yaw_axis = -1
         for axis in range(0, 3):
             if not (axis in self.axis_from_robot):
@@ -27,9 +29,10 @@ class Lidar:
                                                                  robot_attitude[yaw_axis].item() + (self.device.getFov() / 2),
                                                                  self.device.getHorizontalResolution())))
 
-    def get_readings_vector_from_robot(self, robot_attitude: np.ndarray):
+
+    def update_current_readings(self, robot_attitude: np.ndarray):
         # get xyz position of lidar readings in relation to robot
-        readings = self.get_readings_with_angle(robot_attitude)
+        readings = self._get_readings_with_angle(robot_attitude)
         inf_mask = readings[:, 0] == np.inf
         readings[:, 0][inf_mask] = self.device.getMaxRange() + 1  # Put it beyond max range
         component_triangle_adj = np.cos(readings[:, 1]) * readings[:, 0]
@@ -50,4 +53,8 @@ class Lidar:
                 dist_from_robot[ang_non_zero_mask] = (readings[:, 0])[ang_non_zero_mask] * ang[ang_non_zero_mask]
                 readings_xyz[num] = dist_from_robot
                 break
-        return readings_xyz.T
+        self.__current_readings = readings_xyz.T
+
+    @property
+    def current_readings(self) -> np.ndarray:
+        return self.__current_readings
