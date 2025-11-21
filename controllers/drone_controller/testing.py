@@ -2,6 +2,7 @@ from mapping import *
 from lidar import Lidar
 import numpy as np
 import sys
+import time
 
 
 def visually_test_mask(map_inst: Mapping, mask: np.ndarray) -> np.ndarray:
@@ -9,6 +10,13 @@ def visually_test_mask(map_inst: Mapping, mask: np.ndarray) -> np.ndarray:
     for index in map_inst.get_all_map_indexes()[mask]:
         temp_map[index[0], index[1], index[2]] = 1
     return temp_map
+
+
+def time_function(function, *args) -> float:
+    start_time = time.time()
+    function(*args)
+    end_time = time.time()
+    return end_time - start_time
 
 
 class TestDevice:
@@ -62,9 +70,9 @@ if __name__ == "__main__":
     range_image_filter = range_image > 1
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
-    mymap = Mapping(250, 1)
-    test_initialise_blocks_in_range(mymap)
-    test_fov_mask(mymap, mydar)
-    test_range_mask(mymap, mydar)
-    # test_map_update(mymap, mydar)
+    mymap = Mapping(250, 1, (120, 120, 120))
+    # test_initialise_blocks_in_range(mymap)
+    # test_fov_mask(mymap, mydar)
+    # test_range_mask(mymap, mydar)
+    print(time_function(test_map_update, mymap, mydar))
     print("Everything passed")

@@ -1,3 +1,4 @@
+import threading
 import numpy as np
 import math
 from lidar import Lidar
@@ -74,33 +75,30 @@ class Mapping:
         :param robot_size_blocks: The size of the longest side of the robot in blocks
         :param map_init_shape: the size of the initial map. A balance must be struck, because too large of a map causes too much memory to be used whereas too small of a map causes lots of map copy operations to increase its size later on
         """
+        # https://stackoverflow.com/questions/53026825/global-lock-causing-my-program-to-stop-running - Explains use of RLock
+        self._map_lock = threading.RLock()
+        self._origin_lock = threading.RLock()
         self.__map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
-        self.__origin = np.array(
-            [0, 0, 0])  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
+        self.__origin = np.array(map_init_shape) / 2  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
         self.block_length = block_length_mm / 1000
         self.robot_size_blocks = robot_size_blocks
 
     def _extend_to(self, coords: tuple[int, int, int]) -> np.ndarray:
         """
-        Function to exchange the map with a larger copy
+        Function to exchange the map with a larger copy. Requires _map_lock to already have been acquired
         :param coords: The coordinates that need to be within the new map
         :return: The vector by which the map's origin has drifted
         """
-        print(self.__map.shape)
         map_shape = (self.__map.shape - np.ones(3)).astype('i')
-        if np.all(np.array(coords) >= 0) and np.all((np.array(coords) - map_shape) <= 0):
-            # When map doesn't need to be extended
-            print("No Ext")
-            return np.zeros_like(self.__origin)
-        prev_start = self.__origin.copy()
-        self.__origin = self.__origin + np.abs(np.minimum(0, coords))
         self.__map = np.pad(self.__map, pad_width=(
             (np.abs(np.minimum(0, coords[0])), np.maximum(0, coords[0] - map_shape[0])),
             (np.abs(np.minimum(0, coords[1])), np.maximum(0, coords[1] - map_shape[1])),
             (np.abs(np.minimum(0, coords[2])), np.maximum(0, coords[2] - map_shape[2]))),
                             mode='constant', constant_values=self.prior)
-        print("2", self.__map.shape)
-        return self.__origin - prev_start
+        with self._origin_lock:
+            prev_start = self.__origin.copy()
+            self.__origin = self.__origin + np.abs(np.minimum(0, coords))
+            return self.__origin - prev_start
 
     def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
         new_blocks_max_dist: int = math.ceil(radius / self.block_length)
@@ -116,31 +114,33 @@ class Mapping:
                                                                      "i") + new_blocks_max_dist + 1)]
         change_vec = np.zeros(3)
         for new_block in [min(new_blocks), max(new_blocks)]:
-            if not ((new_block[0] + change_vec[0] < self.__map.shape[0]) and (
-                     new_block[1] + change_vec[1] < self.__map.shape[1]) and (
-                     new_block[2] + change_vec[2] < self.__map.shape[2]) and (
-                     new_block[0] + change_vec[0] >= 0) and (
-                     new_block[1] + change_vec[1] >= 0) and (
-                     new_block[2] + change_vec[2] >= 0)):
-                change_vec = change_vec + self._extend_to((int(new_block[0] + change_vec[0]),
-                                                           int(new_block[1] + change_vec[1]),
-                                                           int(new_block[2] + change_vec[2])))
+            with self._map_lock:
+                if not ((new_block[0] + change_vec[0] < self.__map.shape[0]) and (
+                         new_block[1] + change_vec[1] < self.__map.shape[1]) and (
+                         new_block[2] + change_vec[2] < self.__map.shape[2]) and (
+                         new_block[0] + change_vec[0] >= 0) and (
+                         new_block[1] + change_vec[1] >= 0) and (
+                         new_block[2] + change_vec[2] >= 0)):
+                    change_vec = change_vec + self._extend_to((int(new_block[0] + change_vec[0]),
+                                                               int(new_block[1] + change_vec[1]),
+                                                               int(new_block[2] + change_vec[2])))
         robot_map_index = (robot_map_index + change_vec).astype("i")
         return robot_map_index
 
     def get_all_map_indexes(self) -> np.ndarray:
-        return np.array(np.meshgrid(
-            np.arange(self.__map.shape[0]),
-            np.arange(self.__map.shape[1]),
-            np.arange(self.__map.shape[2])
-        )).T.reshape(-1, 3)
+        with self._map_lock:
+            return np.array(np.meshgrid(
+                np.arange(self.__map.shape[0]),
+                np.arange(self.__map.shape[1]),
+                np.arange(self.__map.shape[2])
+            )).T.reshape(-1, 3)
 
     def get_lidar_fov_mask(self,
                            robot_loc: np.ndarray,
                            robot_attitude: np.ndarray,
+                           map_indexes: np.ndarray,
                            lidar_inst
                            ) -> np.ndarray:
-        map_indexes = self.get_all_map_indexes()
 
         # get FOV angles
         component_triangle_adj = np.cos(lidar_inst.device.getFov() / 2) * lidar_inst.device.getMaxRange()
@@ -187,15 +187,16 @@ class Mapping:
         fov_mask = yaw_filter.flatten() & pitch_filter.flatten()
         return fov_mask
 
-    def get_lidar_range_mask(self, robot_loc: np.ndarray, lidar_inst):
-        dist_from_robot = blocks_to_meters(self.get_all_map_indexes(), self.block_length) - robot_loc
+    def get_lidar_range_mask(self, robot_loc: np.ndarray, lidar_inst, all_map_indexes: np.ndarray) -> np.ndarray:
+        dist_from_robot = blocks_to_meters(all_map_indexes, self.block_length) - robot_loc
         return np.sqrt(np.sum(np.square(dist_from_robot), axis=1)) <= 1
 
     def prepare_map_and_update_location(self, robot_loc: np.ndarray, lidar_inst) -> np.ndarray:
         # extend map
         robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length)
         robot_loc_remainder = robot_loc % self.block_length
-        robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.__origin,
+        with self._origin_lock:
+            robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.__origin,
                                                           radius=lidar_inst.device.getMaxRange())
         robot_loc_blocks = robot_map_index  # - self.origin
         robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder
@@ -219,10 +220,12 @@ class Mapping:
 
         # ---- update map ----
 
+        all_map_indexes = self.get_all_map_indexes()
+
         # filter map indexes to get those within lidar range and fov
-        fov_mask = self.get_lidar_fov_mask(robot_loc, robot_attitude, lidar_inst)
-        range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst)
-        learning_blocks_indices = self.get_all_map_indexes()[fov_mask & range_mask]
+        fov_mask = self.get_lidar_fov_mask(robot_loc, robot_attitude, all_map_indexes, lidar_inst)
+        range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst, all_map_indexes)
+        learning_blocks_indices = all_map_indexes[fov_mask & range_mask]
 
         # disallow current block
         current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
@@ -256,14 +259,16 @@ class Mapping:
                 cur_disp -= block_step
 
             # Update map index
-            self.__map[indices[0], indices[1], indices[2]] = self.__map[indices[0], indices[1], indices[2]] + update_amount
+            with self._map_lock:
+                self.__map[indices[0], indices[1], indices[2]] = self.__map[indices[0], indices[1], indices[2]] + update_amount
 
     def get(self, maximum_certainty_log_odds: float) -> np.ndarray:
         # Returns a copy of the map where the certainty is limited to [-self.max_certainty, self.max_certainty] so that no one area becomes overly important making all other areas of the map relatively negligible
         # This could have happened, for example, when the drone is stopped at one location for a long time.
-        map_copy = self.__map.copy()
-        max_filter = self.__map > maximum_certainty_log_odds
-        min_filter = self.__map < -maximum_certainty_log_odds
+        with self._map_lock:
+            map_copy = self.__map.copy()
+            max_filter = self.__map > maximum_certainty_log_odds
+            min_filter = self.__map < -maximum_certainty_log_odds
         map_copy[max_filter] = maximum_certainty_log_odds
         map_copy[min_filter] = -maximum_certainty_log_odds
         return map_copy
@@ -284,11 +289,14 @@ class Mapping:
         :param key: tuple[int, int, int] : the specified co-ordinate
         :return: the occupancy log odd for specified co-ordinate
         """
-        return self.__map[key[0], key[1], key[2]]
+        with self._map_lock:
+            return self.__map[key[0], key[1], key[2]]
 
     @property
     def origin(self) -> np.ndarray:
-        return self.__origin
+        with self._origin_lock:
+            return self.__origin
 
     def __str__(self):
-        return str(self.__map)
+        with self._map_lock:
+            return str(self.__map)

@@ -1,9 +1,10 @@
 """drone_controller controller."""
-from mapping import *
+from mapping import Mapping, meters_to_blocks
 from path_planner import Path_Planner
 from lidar import Lidar
 import numpy as np
 import math
+import threading
 
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
@@ -79,7 +80,7 @@ vertical_lidar: Lidar = Lidar(vertical_lidar_device,
                           )
 
 # create the map in a Mapping object
-mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE, (100, 100, 100))
+mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
 
 #get inertial unit
 imu = robot.getDevice("inertial unit")
@@ -105,9 +106,20 @@ while robot.step(timestep) != -1:
     key = keyboard.getKey()
 
     # Update the map given readings from both LIDARs
-    mapping_inst.update(np.array(gps.getValues()), np.array(gyro.getValues()), horizontal_lidar)
-    mapping_inst.update(np.array(gps.getValues()), np.array(gyro.getValues()), vertical_lidar)
-    
+    # Using threads to speed up the process by running many operations in parallel
+    step_update_threads = []
+    step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                               args=(np.array(gps.getValues()), np.array(gyro.getValues()),
+                                                     horizontal_lidar)))
+    step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                               args=(np.array(gps.getValues()), np.array(gyro.getValues()),
+                                                     vertical_lidar)))
+    for update_thread in step_update_threads:
+        update_thread.start()
+    # wait for threads to finish
+    for update_thread in step_update_threads:
+        update_thread.join()
+
     # read sensors
     roll, pitch, yaw = imu.getRollPitchYaw()
     altitude = gps.getValues()[2]
@@ -127,7 +139,7 @@ while robot.step(timestep) != -1:
     fr_input = vertical_thrust_base + vertical_input + roll_input + pitch_input + yaw_input
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
-    if (key == ord("W")):
+    if key == ord("W"):
         pass
     
     #...
@@ -143,7 +155,7 @@ while robot.step(timestep) != -1:
     if (prints > 0) and (loops % prints == 0):
         pass
         # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
-        # print(mapping_inst.get().shape)
+        print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
     loops += 1
 
     #localisation -> mapping -> database of map
