@@ -164,14 +164,10 @@ class Mapping:
                 break
         yaw_angles = _angle_calc_arr(robot_loc, map_indexes, self.block_length, axes=lidar_inst.axis_from_robot)
         pitch_angles = _angle_calc_arr(robot_loc, map_indexes, self.block_length,
-                                       axes=(lidar_inst.axis_from_robot[0], yaw_axis))
+                                       axes=(lidar_inst.axis_from_robot[0],
+                                             yaw_axis))
 
         # calculate filter
-        yaw_axis = -1
-        for axis in range(0, 3):
-            if not (axis in lidar_inst.axis_from_robot):
-                yaw_axis = axis
-                break
         if (robot_attitude[yaw_axis].item() - fov_components[0].item()) % (2*np.pi) > (
                 robot_attitude[yaw_axis].item() + fov_components[0].item()) % (2*np.pi):
             yaw_filter = np.logical_or(
