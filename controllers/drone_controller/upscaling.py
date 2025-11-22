@@ -24,7 +24,7 @@ def linear_upscaling(image_map: np.ndarray, factor: int):
     return np.roll(new_image_map, 1, axis=1)
 
 if __name__ == "__main__":
-    mymap = np.array([[1, 0, 1],
-                    [1, 0, 1],
-                    [1, 0, 1]])
+    mymap = np.array([[1, -1, 1],
+                      [1, -1, 1],
+                      [1, -1, 1]])
     print(linear_upscaling(mymap, 2))
