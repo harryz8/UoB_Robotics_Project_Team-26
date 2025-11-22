@@ -53,32 +53,42 @@ vertical_gain = 3.0              #gain for altitude
 roll_gain = 50.0            #gain for roll      
 pitch_gain = 30.0           #etc...
 yaw_gain = 15.0
-x_gain = 0.75
+#x_gain = 0.75
 
 target_altitude = 1.0 #altitude it tries to reach
 target_yaw = 0.0 #yaw it tries to reach
 
-#x-axis PID, forward/back
-target_x = 0.0
-x_kp = 0.8 #x proportional gain
-x_ki = 0.0 #x integral gain
-x_kd = 0.2 #x derivative gain
-x_integral = 0.0 #store state for calc
-x_prev_error = 0.0 #store state for calc
-x_velocity_gain = 0.5 #adding in damping
+#x-axis PID, forward/back, no longer used but keep just in case
+#target_x = 0.0
+#x_kp = 0.8 #x proportional gain
+#x_ki = 0.0 #x integral gain
+#x_kd = 0.2 #x derivative gain
+#x_integral = 0.0 #store state for calc
+#x_prev_error = 0.0 #store state for calc
+#x_velocity_gain = 0.5 #adding in damping
 
 #y-axis PID, right/left, same as above but with y respectively
-target_y = 0.0
-y_kp = 0.8
-y_ki = 0.0
-y_kd = 0.2
-y_integral = 0.0
-y_prev_error = 0.0
-y_velocity_gain = 0.5
+#target_y = 0.0
+#y_kp = 0.8
+#y_ki = 0.0
+#y_kd = 0.2
+#y_integral = 0.0
+#y_prev_error = 0.0
+#y_velocity_gain = 0.5
+
+#keyboard movement stuff
+key_increment = 0.01  # movement per step
+key_damping = 0.95    # damping when no key pressed
+x_offset = 0.0
+y_offset = 0.0
 
 #maximum allowed values for pitch or roll correction
 max_pitch_correction = 0.5 
 max_roll_correction = 0.5
+
+#drift correction, values found through iterative testing
+x_trim = 0.15
+y_trim = 0.064
     
 # getting camera device
 camera = robot.getDevice("camera")
@@ -101,57 +111,46 @@ gps.enable(timestep)
 gyro = robot.getDevice("gyro")
 gyro.enable(timestep)
 
-#prev gps values for velocity stabilisation
-x_prev = gps.getValues()[0]
-y_prev = gps.getValues()[1]
-
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-    key=keyboard.getKey()
     
     # Read sensors
     roll, pitch, yaw = imu.getRollPitchYaw()
-    x_current = gps.getValues()[0]
-    y_current = gps.getValues()[1]
     altitude = gps.getValues()[2]
+    
+    # Keyboard input
+    pressed_keys = set()
+    k = keyboard.getKey()
+    while k != -1:
+        pressed_keys.add(k)
+        k = keyboard.getKey()
 
-    # Calculate x and y velocities
-    dt = timestep / 1000.0
-    x_velocity = (x_current - x_prev) / dt
-    y_velocity = (y_current - y_prev) / dt
-    x_prev = x_current
-    y_prev = y_current
+    # Keyboard offsets
+    if ord("W") in pressed_keys:
+        x_offset += key_increment   # forward
+    if ord("S") in pressed_keys:
+        x_offset -= key_increment   # backward
+    if ord("A") in pressed_keys:
+        y_offset -= key_increment   # left
+    if ord("D") in pressed_keys:
+        y_offset += key_increment   # right
+
+    # Apply damping
+    x_offset *= key_damping
+    y_offset *= key_damping
 
     # Vertical stabilization (altitude)
     vertical_input = vertical_gain * (clamp(target_altitude - altitude + vertical_offset, -1.0, 1.0)) ** 3
 
-    # X-axis PID for pitch
-    x_error = target_x - x_current
-    x_integral += x_error * dt
-    x_derivative = (x_error - x_prev_error) / dt
-    x_prev_error = x_error
-
-    pitch_correction = x_kp * x_error + x_ki * x_integral + x_kd * x_derivative
-    pitch_correction -= x_velocity_gain * x_velocity
-    pitch_correction = clamp(pitch_correction, -max_pitch_correction, max_pitch_correction)
-
-    # Y-axis PID for roll
-    y_error = target_y - y_current
-    y_integral += y_error * dt
-    y_derivative = (y_error - y_prev_error) / dt
-    y_prev_error = y_error
-
-    roll_correction = y_kp * y_error + y_ki * y_integral + y_kd * y_derivative
-    roll_correction -= y_velocity_gain * y_velocity
-    roll_correction = clamp(roll_correction, -max_roll_correction, max_roll_correction)
-
-    # combines IMU with PID for stabilisation
-    roll_input = roll_gain * clamp(roll, -1.0, 1.0) + roll_correction
+    # calculate pitch/roll correction with keyboard ofssets 
+    pitch_correction = clamp(x_offset * 5.0 + x_trim, -max_pitch_correction, max_pitch_correction)
+    roll_correction  = clamp(y_offset * 5.0 + y_trim, -max_roll_correction, max_roll_correction)
+    
+    # Combine with IMU stabilization
+    roll_input  = roll_gain * clamp(roll, -1.0, 1.0) + roll_correction
     pitch_input = pitch_gain * clamp(pitch, -1.0, 1.0) + pitch_correction
-
-    # pitch correction, found through iterative testing, multiplies roll by x and adds it to pitch
-    pitch_input += -7.746551065262 * roll 
+    #pitch_input += -7.746551065262 * roll  # iterative pitch fix
 
     # Yaw stabilization
     yaw_error = math.atan2(math.sin(target_yaw - yaw), math.cos(target_yaw - yaw))
@@ -163,13 +162,9 @@ while robot.step(timestep) != -1:
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
 
-    if (key == ord("W")):
-        pass
-    
-    #...
-    elif (key == ord("R")):
-        print(path_planner.test())
-        pass
+    if ord("R") in pressed_keys:
+       print(path_planner.test())  
+       pass
         # Ben
         
     #localisation -> mapping -> databse of map
