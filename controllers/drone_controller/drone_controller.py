@@ -82,7 +82,6 @@ vertical_lidar: Lidar = Lidar(vertical_lidar_device,
 # create the map in a Mapping object
 mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
 
-<<<<<<< HEAD
 #get inertial unit
 imu = robot.getDevice("inertial unit")
 imu.enable(timestep)
@@ -101,8 +100,6 @@ prints = 10
 np.set_printoptions(edgeitems=30, linewidth=100000,
                     formatter=dict(float=lambda x: "%.3g" % x))
 
-=======
->>>>>>> aa88263 (removed print statements for debugging)
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
