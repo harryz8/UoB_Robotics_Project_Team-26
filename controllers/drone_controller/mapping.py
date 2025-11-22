@@ -195,8 +195,15 @@ class Mapping:
         return fov_mask
 
     def get_lidar_range_mask(self, robot_loc: np.ndarray, lidar_inst, all_map_indexes: np.ndarray) -> np.ndarray:
+        """
+        Calculates a mask for keeping only map indexes which are within the range of the lidar from the robot in a list of all map indexes
+        :param robot_loc: the current location of the robot in meters from the original location
+        :param lidar_inst: the lidar object for the LiDAR currently in use
+        :param all_map_indexes: a list of all indexes of values in the map
+        :return: a mask for keeping only map indexes which are within the range of the lidar from the robot in a list of all map indexes
+        """
         dist_from_robot = blocks_to_meters(all_map_indexes, self.block_length) - robot_loc
-        return np.sqrt(np.sum(np.square(dist_from_robot), axis=1)) <= 1
+        return np.sqrt(np.sum(np.square(dist_from_robot), axis=1)) <= lidar_inst.device.getMaxRange()
 
     def prepare_map_and_update_location(self, robot_loc: np.ndarray, lidar_inst) -> np.ndarray:
         # extend map
