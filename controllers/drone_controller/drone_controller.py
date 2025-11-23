@@ -77,14 +77,17 @@ target_yaw = 0.0 #yaw it tries to reach
 #y_velocity_gain = 0.5
 
 #keyboard movement stuff
-key_increment = 0.01  # movement per step
+key_increment = 0.03  # movement per step
 key_damping = 0.95    # damping when no key pressed
 x_offset = 0.0
 y_offset = 0.0
+yaw_offset = 0.0
+yaw_increment = 0.02
+yaw_damping = 0.90
 
 #maximum allowed values for pitch or roll correction
-max_pitch_correction = 0.5 
-max_roll_correction = 0.5
+max_pitch_correction = 0.8 
+max_roll_correction = 0.8
 
 #drift correction, values found through iterative testing
 x_trim = 0.15
@@ -135,17 +138,25 @@ while robot.step(timestep) != -1:
         y_offset -= key_increment   # left
     if ord("D") in pressed_keys:
         y_offset += key_increment   # right
+    if Keyboard.LEFT in pressed_keys:
+        yaw_offset += yaw_increment   #rotate left
+    if Keyboard.RIGHT in pressed_keys:
+        yaw_offset -= yaw_increment    #rotate right
 
     # Apply damping
     x_offset *= key_damping
     y_offset *= key_damping
+    yaw_offset *= yaw_damping
+    
+    #updates target yaw to allow for user input
+    target_yaw += yaw_offset * 0.05
 
     # Vertical stabilization (altitude)
     vertical_input = vertical_gain * (clamp(target_altitude - altitude + vertical_offset, -1.0, 1.0)) ** 3
 
     # calculate pitch/roll correction with keyboard ofssets 
-    pitch_correction = clamp(x_offset * 5.0 + x_trim, -max_pitch_correction, max_pitch_correction)
-    roll_correction  = clamp(y_offset * 5.0 + y_trim, -max_roll_correction, max_roll_correction)
+    pitch_correction = clamp(x_offset * 8.0 + x_trim, -max_pitch_correction, max_pitch_correction)
+    roll_correction  = clamp(y_offset * 8.0 + y_trim, -max_roll_correction, max_roll_correction)
     
     # Combine with IMU stabilization
     roll_input  = roll_gain * clamp(roll, -1.0, 1.0) + roll_correction
