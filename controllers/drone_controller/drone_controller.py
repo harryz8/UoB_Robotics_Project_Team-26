@@ -84,6 +84,9 @@ y_offset = 0.0
 yaw_offset = 0.0
 yaw_increment = 0.02
 yaw_damping = 0.90
+altitude_increment = 0.01
+altitude_max = 10.0
+altitude_min = 0.2 #stop it crashing into ground
 
 #maximum allowed values for pitch or roll correction
 max_pitch_correction = 0.8 
@@ -142,6 +145,13 @@ while robot.step(timestep) != -1:
         yaw_offset += yaw_increment   #rotate left
     if Keyboard.RIGHT in pressed_keys:
         yaw_offset -= yaw_increment    #rotate right
+    if Keyboard.UP in pressed_keys:
+        target_altitude += altitude_increment
+    if Keyboard.DOWN in pressed_keys:
+        target_altitude -= altitude_increment
+        
+    # Clamp altitude to safe range
+    target_altitude = clamp(target_altitude, altitude_min, altitude_max)
 
     # Apply damping
     x_offset *= key_damping
