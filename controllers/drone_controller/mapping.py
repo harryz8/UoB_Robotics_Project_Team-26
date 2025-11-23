@@ -56,9 +56,9 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
     return block_indices_array * block_length_meters
 
 
-def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_length: float) -> bool:
+def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_length: float, axis) -> bool:
     block_index_meters = blocks_to_meters(block_index, block_length)
-    return np.all((location_meters > (block_index_meters - block_length/2)) & (location_meters < (block_index_meters + block_length/2)), axis=1)
+    return np.all((location_meters > (block_index_meters - block_length/2)) & (location_meters < (block_index_meters + block_length/2)), axis=axis)
 
 
 class Mapping:
@@ -283,42 +283,45 @@ class Mapping:
         process_lidar_readings.join()
         readings_vec_from_robot = lidar_inst.current_readings
 
-        st_1 = time.time()
-        # print(f"reading_vec_from_robot: {readings_vec_from_robot.shape}")
-        reading_disp = readings_vec_from_robot + robot_loc  # displacement of the lidar reading from the robot
-        # print(f"reading_disp: {reading_disp.shape}")
-        reading_dist = np.linalg.norm(reading_disp, axis=1)  # distance of the lidar reading from the robot
-        norm = reading_disp.T / reading_dist.T
-        block_step = norm.T * self.block_length  # a step of size 1 block in the direction of the lidar reading_disp
-        max_index = np.argmax(reading_dist)
+        st_401 = time.time()
 
-        all_free_blocks_with_repetition = np.empty(0)
+        reading_disp = readings_vec_from_robot + robot_loc  # displacement of the lidar reading from the axes origin
+        readings_dist_from_robot = np.linalg.norm(readings_vec_from_robot, axis=1)  # distance of the lidar readings from the robot
+        norm = readings_vec_from_robot.T / readings_dist_from_robot.T
+        block_step = norm.T * self.block_length  # a step of size 1 block in the direction of the lidar reading from robot
+
+        all_free_blocks_with_repetition = np.empty(shape=(1,3))
 
         # get all coords of block reading disp travels through except current
         for i in range(reading_disp.shape[0]):
-            free_blocks_max = reading_disp[i] - block_step[i]
-            print(reading_disp[i].shape)
-            print(free_blocks_max.shape)
-            print(robot_loc.shape)
-            sub = np.arange(start=free_blocks_max, stop=robot_loc, step=-block_step[i])
-            free_blocks = meters_to_blocks(sub, self.block_length)
-            all_free_blocks_with_repetition = np.concatenate(all_free_blocks_with_repetition, free_blocks)
+            free_blocks_max = reading_disp[i] + block_step[i]
+            sub = []
+            new = free_blocks_max.copy()
+            stop_blocks = meters_to_blocks(robot_loc, self.block_length)
+            block_index_meters = blocks_to_meters(stop_blocks, self.block_length)
+            while not np.all((new > (block_index_meters - self.block_length/2)) & (new < (block_index_meters + self.block_length/2))):
+                new = new.copy()
+                new -= block_step[i]
+                sub.append(new)
+            free_blocks = meters_to_blocks(np.array(sub), self.block_length)
+            all_free_blocks_with_repetition = np.concatenate((all_free_blocks_with_repetition, free_blocks))
 
-        all_free_blocks, times_block_scanned = np.unique(all_free_blocks_with_repetition, return_counts=True)
+        all_free_blocks, times_block_scanned = np.unique(all_free_blocks_with_repetition, return_counts=True, axis=0)
+        print(f"readings_processing time: {time.time() - st_401}")
 
+        st_1 = time.time()
         for learning_block_index in learning_blocks_indices:
-            st_301 = time.time()
-            # print(type(reading_disp))
             update_amount = 0
 
             # is the reading in the block specified by indices
-            in_block = is_in_block(learning_block_index, reading_disp, self.block_length)
+            in_block = is_in_block(learning_block_index, reading_disp, self.block_length, axis=1)
             collisions = np.zeros_like(in_block) + learning_rate_when_object
             update_amount += np.sum(collisions[in_block])
 
             # is the block free
-            times_block_scanned_index = np.where(all_free_blocks == learning_block_index)
-            update_amount -= times_block_scanned[times_block_scanned_index] * learning_rate_when_empty
+            times_block_scanned_index = np.where(np.all(all_free_blocks == learning_block_index, axis=1))[0]  # get num times block proven to be free
+            if times_block_scanned_index.shape[0] > 0:  # check that there are lidar rays passing through block
+                update_amount += times_block_scanned[times_block_scanned_index].item() * learning_rate_when_empty  # learning_rate is negative so add the info gained
 
             # Update map index
             with self._map_lock:
@@ -327,7 +330,6 @@ class Mapping:
                 learning_block_index[2]] = self.__map[learning_block_index[0],
                 learning_block_index[1],
                 learning_block_index[2]] + update_amount
-            print(f"thread update time: {time.time() - st_301}")
 
         print(f"update step: {time.time() - st_1}")
 
