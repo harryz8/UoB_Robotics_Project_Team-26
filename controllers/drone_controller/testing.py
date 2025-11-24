@@ -70,7 +70,7 @@ if __name__ == "__main__":
     range_image_filter = range_image > 1
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
-    mymap = Mapping(250, 1, (120, 120, 120))
+    mymap = Mapping(250, 1)
     # test_initialise_blocks_in_range(mymap)
     # test_fov_mask(mymap, mydar)
     # test_range_mask(mymap, mydar)

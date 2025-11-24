@@ -4,6 +4,13 @@ import math, time
 from lidar import Lidar
 
 
+def visually_test_mask(map_inst, mask: np.ndarray) -> np.ndarray:
+    temp_map = np.zeros_like(map_inst.get(10000))
+    for index in mask:
+        temp_map[index[0], index[1], index[2]] = 1
+    return temp_map
+
+
 def _angle_calc_arr(robot_loc_meters: np.ndarray,
                     spec_loc_blocks: np.ndarray,
                     block_length_meters: float,
@@ -58,7 +65,7 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
 
 def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_length: float, axis) -> bool:
     block_index_meters = blocks_to_meters(block_index, block_length)
-    return np.all((location_meters > (block_index_meters - block_length/2)) & (location_meters < (block_index_meters + block_length/2)), axis=axis)
+    return np.all((location_meters > block_index_meters) & (location_meters < (block_index_meters + block_length)), axis=axis)
 
 
 class Mapping:
@@ -290,23 +297,34 @@ class Mapping:
         norm = readings_vec_from_robot.T / readings_dist_from_robot.T
         block_step = norm.T * self.block_length  # a step of size 1 block in the direction of the lidar reading from robot
 
-        all_free_blocks_with_repetition = np.empty(shape=(1,3))
-
         # get all coords of block reading disp travels through except current
-        for i in range(reading_disp.shape[0]):
-            free_blocks_max = reading_disp[i] + block_step[i]
-            sub = []
-            new = free_blocks_max.copy()
-            stop_blocks = meters_to_blocks(robot_loc, self.block_length)
-            block_index_meters = blocks_to_meters(stop_blocks, self.block_length)
-            while not np.all((new > (block_index_meters - self.block_length/2)) & (new < (block_index_meters + self.block_length/2))):
-                new = new.copy()
-                new -= block_step[i]
-                sub.append(new)
-            free_blocks = meters_to_blocks(np.array(sub), self.block_length)
-            all_free_blocks_with_repetition = np.concatenate((all_free_blocks_with_repetition, free_blocks))
+        # free_blocks_max = reading_disp - block_step
+        stop_blocks = meters_to_blocks(robot_loc, self.block_length)
+        block_index_meters = blocks_to_meters(stop_blocks, self.block_length)
+        max_free_block = np.argmax(readings_dist_from_robot)
+        looper_max = np.ceil(
+            readings_dist_from_robot[max_free_block] / np.linalg.norm(block_step, axis=1)[max_free_block]
+        ).astype("i")
+        max_free_sub = np.zeros(shape=(looper_max, reading_disp.shape[0], reading_disp.shape[1]))
+        for count in range(looper_max):
+            max_free_sub[count:looper_max, :, :] -= block_step
+        all_free_blocks_with_repetition = max_free_sub + reading_disp
+        print(visually_test_mask(self, np.clip(meters_to_blocks(all_free_blocks_with_repetition, self.block_length), -8, 8).astype("i"))[:, :, 4])
+        last_mask = np.empty(shape=all_free_blocks_with_repetition.shape[1])
+        for i in range(looper_max):
+            too_far_mask = is_in_block(meters_to_blocks(robot_loc, self.block_length), all_free_blocks_with_repetition[i], self.block_length, axis=1)
+            print(f"1: {all_free_blocks_with_repetition[i].shape}")
+            print(f"2: {(~np.logical_or(last_mask, too_far_mask)).shape}")
+            all_free_blocks_with_repetition[i] = all_free_blocks_with_repetition[i][(~np.logical_or(last_mask, too_far_mask))]
+            last_mask = too_far_mask
+        all_free_blocks_with_repetition = all_free_blocks_with_repetition.reshape(-1, all_free_blocks_with_repetition.shape[2])
+        all_free_blocks_with_repetition = meters_to_blocks(all_free_blocks_with_repetition[too_far_mask], self.block_length)
 
-        all_free_blocks, times_block_scanned = np.unique(all_free_blocks_with_repetition, return_counts=True, axis=0)
+        # print(all_free_blocks_with_repetition)
+        all_free_blocks, times_block_scanned = np.unique(np.array(all_free_blocks_with_repetition), return_counts=True, axis=0)
+        print(all_free_blocks)
+        print(visually_test_mask(self, all_free_blocks.astype("i"))[:,:,4])
+        # print(np.column_stack((all_free_blocks, times_block_scanned)))
         print(f"readings_processing time: {time.time() - st_401}")
 
         st_1 = time.time()
