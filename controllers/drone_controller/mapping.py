@@ -70,7 +70,6 @@ class Mapping:
     """
     Class that builds and maintains an occupancy grid map.
     """
-
     prior = 0  # priors are 0
 
     def __init__(self, block_length_mm: float, robot_size_blocks: int, map_init_shape: tuple[int, int, int] = (1,1,1)):
@@ -144,11 +143,28 @@ class Mapping:
                        roll_matrix: np.ndarray,
                        pitch_matrix: np.ndarray,
                        yaw_matrix: np.ndarray,
-                       all_map_indexes: np.ndarray) -> np.ndarray:
+                       all_map_indexes: np.ndarray,
+                       lidar_inst: Lidar) -> np.ndarray:
+        normal_no_rotate = np.zeros(3)
+        normal_no_rotate[lidar_inst.axis_from_robot[0]] = 1
         rotate_all = np.matmul(yaw_matrix, np.matmul(roll_matrix, pitch_matrix))
-        normal_robot_plane = fix_zero_precision(np.matmul(np.array([0, 0, 1]), rotate_all))
-        orthogonal_mask = np.dot(all_map_indexes, normal_robot_plane) == 0
-        # print(normal_robot_plane)
+        normal_robot_plane = fix_zero_precision(np.matmul(normal_no_rotate, rotate_all))
+        disp_from_axes = (all_map_indexes * self.block_length) + (self.block_length / 2)
+        # solve equation distance between plane and line perpendicular to plane that passes through the point disp_from_axes
+        # nr = c where c is the dot of n and a point on the plane, n is the normal vec of the pane and r is the equation of the line
+        # then solve for the lambda that is the equation of the line
+        c = np.dot(normal_robot_plane, robot_loc)
+        n_square = np.dot(normal_robot_plane, normal_robot_plane)
+        n_point = np.dot(disp_from_axes, normal_robot_plane)
+        rhs = c - n_point
+        lamb = rhs / n_square
+        # get displacement of parallel line from plane
+        shortest_disp_from_plane = lamb.reshape(lamb.shape[0], 1) @ normal_robot_plane.reshape(1, normal_robot_plane.shape[0])
+        in_block_mask = np.all(np.logical_and(
+            shortest_disp_from_plane >= -self.block_length / 2,
+            shortest_disp_from_plane < self.block_length / 2
+        ), axis=1)
+        return in_block_mask
 
     def get_lidar_fov_mask(self,
                            robot_loc: np.ndarray,
@@ -178,8 +194,8 @@ class Mapping:
                 yaw_axis = axis
                 break
         yaw_angles = _angle_calc_arr(robot_loc, map_indexes, self.block_length, axes=lidar_inst.axis_from_robot)
-        pitch_angles = _angle_calc_arr(robot_loc, map_indexes, self.block_length,
-                                       axes=(lidar_inst.axis_from_robot[0], yaw_axis))
+        # pitch_angles = _angle_calc_arr(robot_loc, map_indexes, self.block_length,
+        #                                axes=(lidar_inst.axis_from_robot[0], yaw_axis))
 
         # calculate filter
         if (robot_attitude[yaw_axis].item() - fov_components[0].item()) % (2*np.pi) > (
@@ -196,17 +212,17 @@ class Mapping:
                 (yaw_angles % (2 * np.pi)) <= (
                             (robot_attitude[yaw_axis].item() + fov_components[0].item()) % (2 * np.pi)))
 
-        if (robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % (2*np.pi) > (robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % (2*np.pi):
-            pitch_filter = np.logical_or(
-                (pitch_angles % (2*np.pi)) >= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % (2*np.pi)),
-                (pitch_angles % (2*np.pi)) <= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % (2*np.pi)))
-        else:
-            pitch_filter = np.logical_and(
-                (pitch_angles % np.pi) >= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % np.pi),
-                (pitch_angles % np.pi) <= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % np.pi))
+        # if (robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % (2*np.pi) > (robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % (2*np.pi):
+        #     pitch_filter = np.logical_or(
+        #         (pitch_angles % (2*np.pi)) >= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % (2*np.pi)),
+        #         (pitch_angles % (2*np.pi)) <= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % (2*np.pi)))
+        # else:
+        #     pitch_filter = np.logical_and(
+        #         (pitch_angles % np.pi) >= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() - fov_components[1].item()) % np.pi),
+        #         (pitch_angles % np.pi) <= ((robot_attitude[lidar_inst.axis_from_robot[1]].item() + fov_components[1].item()) % np.pi))
 
         # filter map indexes to get those within lidar FOV
-        fov_mask = yaw_filter.flatten() & pitch_filter.flatten()
+        fov_mask = yaw_filter.flatten()
         return fov_mask
 
     def get_lidar_range_mask(self, robot_loc: np.ndarray, lidar_inst, all_map_indexes: np.ndarray) -> np.ndarray:

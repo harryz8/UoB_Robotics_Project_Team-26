@@ -65,18 +65,20 @@ def test_range_mask(map_inst, lidar_inst):
     print(visually_test_mask(map_inst, mask)[:, :, 4])
     assert (displacements <= 1).all(), "test_range_mask() failed."
 
-# def test_pitch_mask(map_instance: Mapping):
-#     robot_attitude = np.array([0, np.pi/2, 0])
-#     roll_matrix = np.array([[1, 0, 0],
-#                             [0, np.cos(robot_attitude[0]), -np.sin(robot_attitude[0])],
-#                             [0, np.sin(robot_attitude[0]), np.cos(robot_attitude[0])]])
-#     pitch_matrix = np.array([[np.cos(robot_attitude[1]), 0, np.sin(robot_attitude[1])],
-#                              [0, 1, 0],
-#                              [-np.sin(robot_attitude[1]), 0, np.cos(robot_attitude[1])]])
-#     yaw_matrix = np.array([[np.cos(robot_attitude[2]), -np.sin(robot_attitude[2]), 0],
-#                            [np.sin(robot_attitude[2]), np.cos(robot_attitude[2]), 0],
-#                            [0, 0, 1]])
-#     map_instance.get_pitch_mask(np.array([0, 0, 0]), roll_matrix, pitch_matrix, yaw_matrix, map_instance.get_all_map_indexes())
+def test_pitch_mask(map_instance: Mapping, lidar_inst: Lidar):
+    robot_loc = map_instance.prepare_map_and_update_location(np.array([0, 0, 0]), lidar_inst)
+    robot_attitude = np.array([0, np.pi/2, 0])
+    roll_matrix = np.array([[1, 0, 0],
+                            [0, np.cos(robot_attitude[0]), -np.sin(robot_attitude[0])],
+                            [0, np.sin(robot_attitude[0]), np.cos(robot_attitude[0])]])
+    pitch_matrix = np.array([[np.cos(robot_attitude[1]), 0, np.sin(robot_attitude[1])],
+                             [0, 1, 0],
+                             [-np.sin(robot_attitude[1]), 0, np.cos(robot_attitude[1])]])
+    yaw_matrix = np.array([[np.cos(robot_attitude[2]), -np.sin(robot_attitude[2]), 0],
+                           [np.sin(robot_attitude[2]), np.cos(robot_attitude[2]), 0],
+                           [0, 0, 1]])
+    mask = map_instance.get_pitch_mask(robot_loc, roll_matrix, pitch_matrix, yaw_matrix, map_instance.get_all_map_indexes(), lidar_inst)
+    print(visually_test_mask(map_instance, mask)[:, :, 4])
 
 if __name__ == "__main__":
     range_image = 0.5 / np.cos(np.linspace(-np.pi / 2, np.pi / 2, 100))
@@ -87,6 +89,6 @@ if __name__ == "__main__":
     # test_initialise_blocks_in_range(mymap)
     # test_fov_mask(mymap, mydar)
     # test_range_mask(mymap, mydar)
-    print(time_function(test_map_update, mymap, mydar))
-    # test_pitch_mask(mymap)
+    # print(time_function(test_map_update, mymap, mydar))
+    test_pitch_mask(mymap, mydar)
     print("Everything passed")

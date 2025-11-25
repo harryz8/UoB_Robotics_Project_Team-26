@@ -229,7 +229,7 @@ while robot.step(timestep) != -1:
     # For debugging
     if (prints > 0) and (loops % prints == 0):
         pass
-        # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
+        print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
         # print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
     loops += 1
 
