@@ -39,7 +39,7 @@ class TestDevice:
 
 def test_map_update(map_inst, lidar_inst):
     map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
-    print(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4])
+    print(np.sign(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]))
     print(map_inst.get_normalised(maximum_certainty_log_odds=10000).shape)
 
 def test_fov_mask(map_inst, lidar_inst):
@@ -65,14 +65,28 @@ def test_range_mask(map_inst, lidar_inst):
     print(visually_test_mask(map_inst, mask)[:, :, 4])
     assert (displacements <= 1).all(), "test_range_mask() failed."
 
+# def test_pitch_mask(map_instance: Mapping):
+#     robot_attitude = np.array([0, np.pi/2, 0])
+#     roll_matrix = np.array([[1, 0, 0],
+#                             [0, np.cos(robot_attitude[0]), -np.sin(robot_attitude[0])],
+#                             [0, np.sin(robot_attitude[0]), np.cos(robot_attitude[0])]])
+#     pitch_matrix = np.array([[np.cos(robot_attitude[1]), 0, np.sin(robot_attitude[1])],
+#                              [0, 1, 0],
+#                              [-np.sin(robot_attitude[1]), 0, np.cos(robot_attitude[1])]])
+#     yaw_matrix = np.array([[np.cos(robot_attitude[2]), -np.sin(robot_attitude[2]), 0],
+#                            [np.sin(robot_attitude[2]), np.cos(robot_attitude[2]), 0],
+#                            [0, 0, 1]])
+#     map_instance.get_pitch_mask(np.array([0, 0, 0]), roll_matrix, pitch_matrix, yaw_matrix, map_instance.get_all_map_indexes())
+
 if __name__ == "__main__":
     range_image = 0.5 / np.cos(np.linspace(-np.pi / 2, np.pi / 2, 100))
     range_image_filter = range_image > 1
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
-    mymap = Mapping(250, 1, (120, 120, 120))
+    mymap = Mapping(250, 1)
     # test_initialise_blocks_in_range(mymap)
     # test_fov_mask(mymap, mydar)
     # test_range_mask(mymap, mydar)
     print(time_function(test_map_update, mymap, mydar))
+    # test_pitch_mask(mymap)
     print("Everything passed")

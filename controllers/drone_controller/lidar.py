@@ -34,7 +34,7 @@ class Lidar:
         # get xyz position of lidar readings in relation to robot
         readings = self._get_readings_with_angle(robot_attitude)
         inf_mask = readings[:, 0] == np.inf
-        readings[:, 0][inf_mask] = self.device.getMaxRange() + 1  # Put it beyond max range
+        readings[:, 0][inf_mask] = 2*self.device.getMaxRange() + 1  # Put it beyond max range
         component_triangle_adj = np.cos(readings[:, 1]) * readings[:, 0]
         roll_triangle_hyp = np.sin(readings[:, 1]) * readings[:, 0]
         reading_angle_components = mapping.angle_in_given_plane_to_two_components(robot_attitude[1].item(),

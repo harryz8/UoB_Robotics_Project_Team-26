@@ -1,7 +1,15 @@
 import threading
 import numpy as np
 import math
+
 from lidar import Lidar
+
+
+def fix_zero_precision(array: np.ndarray) -> np.ndarray:
+    # handles precision error on zeros
+    precision_error_mask = np.isclose(array, 0)
+    array[precision_error_mask] = 0
+    return array
 
 
 def _angle_calc_arr(robot_loc_meters: np.ndarray,
@@ -18,11 +26,8 @@ def _angle_calc_arr(robot_loc_meters: np.ndarray,
     :return: the angle in radians
     """
     # Convert spec_loc_blocks to meters
-    lengths = spec_loc_blocks - (robot_loc_meters / block_length_meters)
-
-    # handles precision error on zeros
-    precision_error_mask = np.isclose(lengths, 0)
-    lengths[precision_error_mask] = 0
+    lengths = (spec_loc_blocks*block_length_meters) + block_length_meters/2 - robot_loc_meters
+    lengths = fix_zero_precision(lengths)
 
     # calculates the angle
     return np.arctan2([lengths[:, axes[1]]], [lengths[:, axes[0]]])
@@ -57,7 +62,7 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
 
 
 def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_length: float) -> bool:
-    block_index_meters = blocks_to_meters(block_index, block_length)
+    block_index_meters = blocks_to_meters(block_index, block_length) + block_length/2
     return np.all((location_meters > (block_index_meters - block_length/2)) & (location_meters < (block_index_meters + block_length/2)), axis=1)
 
 
@@ -134,6 +139,16 @@ class Mapping:
                 np.arange(self.__map.shape[1]),
                 np.arange(self.__map.shape[2])
             )).T.reshape(-1, 3)
+
+    def get_pitch_mask(self, robot_loc: np.ndarray,
+                       roll_matrix: np.ndarray,
+                       pitch_matrix: np.ndarray,
+                       yaw_matrix: np.ndarray,
+                       all_map_indexes: np.ndarray) -> np.ndarray:
+        rotate_all = np.matmul(yaw_matrix, np.matmul(roll_matrix, pitch_matrix))
+        normal_robot_plane = fix_zero_precision(np.matmul(np.array([0, 0, 1]), rotate_all))
+        orthogonal_mask = np.dot(all_map_indexes, normal_robot_plane) == 0
+        print(normal_robot_plane)
 
     def get_lidar_fov_mask(self,
                            robot_loc: np.ndarray,
@@ -227,14 +242,25 @@ class Mapping:
         
         :return: None
         """
-
         # start thread to process and get Lidar readings
         process_lidar_readings = threading.Thread(target=lidar_inst.update_current_readings, args=(robot_attitude,))  # https://www.w3schools.com/python/gloss_python_tuple_one_item.asp
         process_lidar_readings.start()
 
+        # Calculate the rotation matrices for pitch roll and yaw
+        roll_matrix = np.array([[1, 0, 0],
+                         [0, np.cos(robot_attitude[0]), -np.sin(robot_attitude[0])],
+                         [0, np.sin(robot_attitude[0]), np.cos(robot_attitude[0])]])
+        pitch_matrix = np.array([[np.cos(robot_attitude[1]), 0, np.sin(robot_attitude[1])],
+                                 [0, 1, 0],
+                                 [-np.sin(robot_attitude[1]), 0, np.cos(robot_attitude[1])]])
+        yaw_matrix = np.array([[np.cos(robot_attitude[2]), -np.sin(robot_attitude[2]), 0],
+                               [np.sin(robot_attitude[2]), np.cos(robot_attitude[2]), 0],
+                               [0, 0, 1]])
+
         # calculate and set the learning rates for how much we trust the readings and extend map ready for updating if necessary
         learning_rate_when_object: float = np.log(lidar_inst.object_detection_accuracy/(1-lidar_inst.empty_detection_accuracy))
         learning_rate_when_empty: float = np.log((1-lidar_inst.object_detection_accuracy)/lidar_inst.empty_detection_accuracy)
+        robot_loc = robot_loc + self.block_length/2
         robot_loc = self.prepare_map_and_update_location(robot_loc, lidar_inst)
 
         # ---- update map ----
@@ -242,9 +268,10 @@ class Mapping:
         all_map_indexes = self.get_all_map_indexes()
 
         # filter map indexes to get those within lidar range and fov
-        fov_mask = self.get_lidar_fov_mask(robot_loc, robot_attitude, all_map_indexes, lidar_inst)
         range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst, all_map_indexes)
-        learning_blocks_indices = all_map_indexes[fov_mask & range_mask]
+        all_map_indexes = all_map_indexes[range_mask]
+        fov_mask = self.get_lidar_fov_mask(robot_loc, robot_attitude, all_map_indexes, lidar_inst)
+        learning_blocks_indices = all_map_indexes[fov_mask]
 
         # disallow current block
         current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
@@ -253,30 +280,57 @@ class Mapping:
         # Get the range readings from the lidar
         process_lidar_readings.join()
         readings_vec_from_robot = lidar_inst.current_readings
+        reading_disp = readings_vec_from_robot + robot_loc
+        reading_disp = reading_disp.astype(np.float32)
+        reading_dist_from_robot = np.linalg.norm(readings_vec_from_robot, axis=1)
+
+        ########
+        temp_map = np.zeros_like(self.get(10000))
+        for index in learning_blocks_indices:
+            try:
+                temp_map[index[0], index[1], index[2]] = 1
+            except IndexError:
+                pass
+        print(temp_map[:, :, 4])
+        ########
+        ########
+        temp_map = np.zeros_like(self.get(10000))
+        for index in (reading_disp // self.block_length).astype("i"):
+            try:
+                temp_map[index[0], index[1], index[2]] += 1
+            except IndexError:
+                pass
+        print(temp_map[:, :, 4])
+        ########
 
         # i = 0
         for indices in learning_blocks_indices:
+            print(f"\n\rindices: {indices}")
             update_amount = 0
 
             # is the reading in the block specified by indices
-            reading_disp = readings_vec_from_robot + robot_loc
             reading_dist = np.linalg.norm(reading_disp, axis=1)
             in_block = is_in_block(indices, reading_disp, self.block_length)
             collisions = np.zeros_like(in_block) + learning_rate_when_object
             update_amount += np.sum(collisions[in_block])
 
             # is the block free
-            norm = reading_disp.T / reading_dist.T
+            norm = readings_vec_from_robot.T / reading_dist_from_robot.T
             block_step = norm.T * self.block_length
-            cur_disp = reading_disp - block_step
-            max_index = np.argmax(reading_dist)
-            while np.sum(np.sign(cur_disp[max_index])) * reading_dist[max_index] > 0:
+            cur_disp = robot_loc + block_step
+            max_index = np.argmax(reading_dist_from_robot)
+            max_loops = reading_dist_from_robot[max_index] / np.linalg.norm(block_step[max_index])
+            for _ in range(max_loops.astype("i")):  # -1
                 in_block = is_in_block(indices, cur_disp, self.block_length)
                 collisions = np.zeros_like(in_block) + learning_rate_when_empty
-                over_mask = np.sum(np.sign(cur_disp), axis=1) * reading_dist < 0
+                over_mask = np.linalg.norm(cur_disp - robot_loc, axis=1)//np.linalg.norm(block_step, axis=1) >= reading_dist_from_robot//np.linalg.norm(block_step, axis=1)
+                if (indices == np.array([5., 5., 4.])).all():
+                    print(reading_dist_from_robot)
+                    print(f"Norm: {np.linalg.norm(cur_disp, axis=1)}")
                 collisions[over_mask] = 0
+                # print(f"Collisions: {np.sum(collisions[in_block])}")
                 update_amount += np.sum(collisions[in_block])
-                cur_disp -= block_step
+                cur_disp += block_step
 
             # Update map index
             with self._map_lock:
