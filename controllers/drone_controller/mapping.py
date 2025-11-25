@@ -148,7 +148,7 @@ class Mapping:
         rotate_all = np.matmul(yaw_matrix, np.matmul(roll_matrix, pitch_matrix))
         normal_robot_plane = fix_zero_precision(np.matmul(np.array([0, 0, 1]), rotate_all))
         orthogonal_mask = np.dot(all_map_indexes, normal_robot_plane) == 0
-        print(normal_robot_plane)
+        # print(normal_robot_plane)
 
     def get_lidar_fov_mask(self,
                            robot_loc: np.ndarray,
@@ -269,9 +269,9 @@ class Mapping:
 
         # filter map indexes to get those within lidar range and fov
         range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst, all_map_indexes)
-        all_map_indexes = all_map_indexes[range_mask]
-        fov_mask = self.get_lidar_fov_mask(robot_loc, robot_attitude, all_map_indexes, lidar_inst)
-        learning_blocks_indices = all_map_indexes[fov_mask]
+        learning_blocks_indices = all_map_indexes[range_mask]
+        # fov_mask = self.get_lidar_fov_mask(robot_loc, robot_attitude, all_map_indexes, lidar_inst)
+        # learning_blocks_indices = all_map_indexes[fov_mask]
 
         # disallow current block
         current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
@@ -284,28 +284,8 @@ class Mapping:
         reading_disp = reading_disp.astype(np.float32)
         reading_dist_from_robot = np.linalg.norm(readings_vec_from_robot, axis=1)
 
-        ########
-        temp_map = np.zeros_like(self.get(10000))
-        for index in learning_blocks_indices:
-            try:
-                temp_map[index[0], index[1], index[2]] = 1
-            except IndexError:
-                pass
-        print(temp_map[:, :, 4])
-        ########
-        ########
-        temp_map = np.zeros_like(self.get(10000))
-        for index in (reading_disp // self.block_length).astype("i"):
-            try:
-                temp_map[index[0], index[1], index[2]] += 1
-            except IndexError:
-                pass
-        print(temp_map[:, :, 4])
-        ########
-
         # i = 0
         for indices in learning_blocks_indices:
-            print(f"\n\rindices: {indices}")
             update_amount = 0
 
             # is the reading in the block specified by indices
@@ -324,9 +304,6 @@ class Mapping:
                 in_block = is_in_block(indices, cur_disp, self.block_length)
                 collisions = np.zeros_like(in_block) + learning_rate_when_empty
                 over_mask = np.linalg.norm(cur_disp - robot_loc, axis=1)//np.linalg.norm(block_step, axis=1) >= reading_dist_from_robot//np.linalg.norm(block_step, axis=1)
-                if (indices == np.array([5., 5., 4.])).all():
-                    print(reading_dist_from_robot)
-                    print(f"Norm: {np.linalg.norm(cur_disp, axis=1)}")
                 collisions[over_mask] = 0
                 # print(f"Collisions: {np.sum(collisions[in_block])}")
                 update_amount += np.sum(collisions[in_block])
