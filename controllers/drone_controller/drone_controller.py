@@ -42,22 +42,61 @@ rear_right_motor = robot.getDevice("rear right propeller")
 
 motors = [front_left_motor, front_right_motor, rear_left_motor, rear_right_motor]
 
-#Set motors to velocity control
+#Set motors to velocity control, makes it so motors dont try to reach specific angle
 for motor in motors:
     motor.setPosition(float('inf')) # set to infinity = velocity control
     motor.setVelocity(0.0)
     
-# PID constants for hover
-#controller gain for each axis, i.e. the higher vertical_offset the more aggressively it tries to reach target altitiude
-vertical_thrust_base = 68.5       
-vertical_offset = 0.6            
-vertical_gain = 3.0              
-roll_gain = 50.0                  
-pitch_gain = 30.0
+# constants for hover
+# gain is multiplied by error for stabilization
+vertical_thrust_base = 68.5    #base thrust given to each motor  
+vertical_offset = 0.6       #bias added to altitude correction   
+vertical_gain = 3.0              #gain for altitude
+roll_gain = 50.0            #gain for roll      
+pitch_gain = 30.0           #etc...
 yaw_gain = 15.0
+#x_gain = 0.75
 
-target_altitude = 1.0
-target_yaw = 0.0
+target_altitude = 1.0 #altitude it tries to reach
+target_yaw = 0.0 #yaw it tries to reach
+
+#x-axis PID, forward/back, no longer used but keep just in case
+#target_x = 0.0
+#x_kp = 0.8 #x proportional gain
+#x_ki = 0.0 #x integral gain
+#x_kd = 0.2 #x derivative gain
+#x_integral = 0.0 #store state for calc
+#x_prev_error = 0.0 #store state for calc
+#x_velocity_gain = 0.5 #adding in damping
+
+#y-axis PID, right/left, same as above but with y respectively
+#target_y = 0.0
+#y_kp = 0.8
+#y_ki = 0.0
+#y_kd = 0.2
+#y_integral = 0.0
+#y_prev_error = 0.0
+#y_velocity_gain = 0.5
+
+#keyboard movement stuff
+key_increment = 0.03  # movement per step
+key_damping = 0.95    # damping when no key pressed
+x_offset = 0.0
+y_offset = 0.0
+yaw_offset = 0.0
+yaw_increment = 0.02
+yaw_damping = 0.90
+altitude_increment = 0.01
+altitude_max = 10.0
+altitude_min = 0.2 #stop it crashing into ground
+
+#maximum allowed values for pitch or roll correction
+max_pitch_correction = 0.8 
+max_roll_correction = 0.8
+
+#drift correction, values found through iterative testing
+x_trim = 0.15
+y_trim = 0.064
     
 # getting camera device
 camera = robot.getDevice("camera")
@@ -121,41 +160,77 @@ while robot.step(timestep) != -1:
         update_thread.join()
 
     # read sensors
+
     roll, pitch, yaw = imu.getRollPitchYaw()
     altitude = gps.getValues()[2]
-    roll_velocity, pitch_velocity, _ = gyro.getValues()
-
-    # stabilization
-    roll_input = roll_gain * clamp(roll, -1.0, 1.0)
-    pitch_input = pitch_gain * clamp(pitch, -1.0, 1.0)
-    vertical_input = vertical_gain * (clamp(target_altitude - altitude + vertical_offset, -1.0, 1.0)) ** 3
     
-     # wrap yaw error to [-pi, pi]
+    # Keyboard input
+    pressed_keys = set()
+    k = keyboard.getKey()
+    while k != -1:
+        pressed_keys.add(k)
+        k = keyboard.getKey()
+
+    # Keyboard offsets
+    if ord("W") in pressed_keys:
+        x_offset += key_increment   # forward
+    if ord("S") in pressed_keys:
+        x_offset -= key_increment   # backward
+    if ord("A") in pressed_keys:
+        y_offset -= key_increment   # left
+    if ord("D") in pressed_keys:
+        y_offset += key_increment   # right
+    if Keyboard.LEFT in pressed_keys:
+        yaw_offset += yaw_increment   #rotate left
+    if Keyboard.RIGHT in pressed_keys:
+        yaw_offset -= yaw_increment    #rotate right
+    if Keyboard.UP in pressed_keys:
+        target_altitude += altitude_increment
+    if Keyboard.DOWN in pressed_keys:
+        target_altitude -= altitude_increment
+        
+    # Clamp altitude to safe range
+    target_altitude = clamp(target_altitude, altitude_min, altitude_max)
+
+    # Apply damping
+    x_offset *= key_damping
+    y_offset *= key_damping
+    yaw_offset *= yaw_damping
+    
+    #updates target yaw to allow for user input
+    target_yaw += yaw_offset * 0.05
+
+    # Vertical stabilization (altitude)
+    vertical_input = vertical_gain * (clamp(target_altitude - altitude + vertical_offset, -1.0, 1.0)) ** 3
+
+    # calculate pitch/roll correction with keyboard ofssets 
+    pitch_correction = clamp(x_offset * 8.0 + x_trim, -max_pitch_correction, max_pitch_correction)
+    roll_correction  = clamp(y_offset * 8.0 + y_trim, -max_roll_correction, max_roll_correction)
+    
+    # Combine with IMU stabilization
+    roll_input  = roll_gain * clamp(roll, -1.0, 1.0) + roll_correction
+    pitch_input = pitch_gain * clamp(pitch, -1.0, 1.0) + pitch_correction
+    #pitch_input += -7.746551065262 * roll  # iterative pitch fix
+
+    # Yaw stabilization
     yaw_error = math.atan2(math.sin(target_yaw - yaw), math.cos(target_yaw - yaw))
     yaw_input = yaw_gain * clamp(yaw_error, -1.0, 1.0)
 
-    # Motor velocities including yaw
+    # Motor mixing, essentially computes each motors thrust based on base, vertical, roll, pitch and yaw
     fl_input = vertical_thrust_base + vertical_input - roll_input + pitch_input - yaw_input
     fr_input = vertical_thrust_base + vertical_input + roll_input + pitch_input + yaw_input
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
-    if key == ord("W"):
-        pass
-    
-    #...
-    elif key == ord("R"):
-        # something like this
-        """ path_planner.shortest_path(meters_to_blocks(localisation.get_coordinates(), BLOCK_LENGTH),
-                                   mapping_inst.origin,
-                                   mapping_inst.get()) """
-        print(path_planner.test())
-        pass
+
+    if ord("R") in pressed_keys:
+       print(path_planner.test())  
+       pass
         # Ben
     # For debugging
     if (prints > 0) and (loops % prints == 0):
         pass
         # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
-        print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
+        # print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
     loops += 1
 
     #localisation -> mapping -> database of map
