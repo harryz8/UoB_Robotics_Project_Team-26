@@ -1,13 +1,16 @@
 """drone_controller controller."""
-from mapping import Mapping
+from mapping import Mapping, meters_to_blocks
 from path_planner import Path_Planner
-import numpy as np
-import math
 # You may need to import some classes of the controller module. Ex:
 #  from controller import Robot, Motor, DistanceSensor
 from controller import Robot, Motor, GPS, InertialUnit, Gyro, Keyboard
+from lidar import Lidar
+import numpy as np
+import math
+import threading
 
-BLOCK_LENGTH : int = 350 #mm
+BLOCK_LENGTH: float = 350  # The length of one side of the cube shaped 'block' which the world is split into in the map. In mm
+ROBOT_SIZE: int = 1  # How many blocks the lidar takes up. In blocks
 
 #clamps values
 def clamp(value, low, high):
@@ -42,12 +45,10 @@ grid = [
     ]
 ]
 # create keyboard instance
-keyboard=Keyboard()
+keyboard = Keyboard()
 keyboard.enable(timestep)
 
-# create the map
-mapping : Mapping = Mapping(BLOCK_LENGTH)
-path_planner : Path_Planner = Path_Planner()
+path_planner: Path_Planner = Path_Planner()
 
 # You should insert a getDevice-like function in order to get the
 # instance of a device of the robot. Something like:
@@ -123,10 +124,24 @@ y_trim = 0.064
 camera = robot.getDevice("camera")
 camera.enable(timestep)
 
-# getting lidar device
-lidar = robot.getDevice("lidar")
-lidar.enable(timestep)
-lidar.enablePointCloud()
+# getting lidar devices and initialising lidar objects
+horizontal_lidar_device = robot.getDevice("horizontal_lidar")
+horizontal_lidar_device.enable(timestep)
+horizontal_lidar: Lidar = Lidar(horizontal_lidar_device,
+                          axis_from_robot=(0, 1),
+                          object_detected_given_object_prob=0.9,  # to be determined
+                          empty_detected_given_empty_prob=0.9  # to be determined
+                          )
+vertical_lidar_device = robot.getDevice("vertical_lidar")
+vertical_lidar_device.enable(timestep)
+vertical_lidar: Lidar = Lidar(vertical_lidar_device,
+                          axis_from_robot=(0, 2),
+                          object_detected_given_object_prob=0.9,  # to be determined
+                          empty_detected_given_empty_prob=0.9  # to be determined
+                          )
+
+# create the map in a Mapping object
+mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
 
 #get inertial unit
 imu = robot.getDevice("inertial unit")
@@ -140,10 +155,34 @@ gps.enable(timestep)
 gyro = robot.getDevice("gyro")
 gyro.enable(timestep)
 
+# for debugging
+loops = 0
+prints = 10
+np.set_printoptions(edgeitems=30, linewidth=100000,
+                    formatter=dict(float=lambda x: "%.3g" % x))
+
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-    # Read sensors
+    key = keyboard.getKey()
+
+    # Update the map given readings from both LIDARs
+    # Using threads to speed up the process by running many operations in parallel
+    step_update_threads = []
+    step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                               args=(np.array(gps.getValues()), np.array(gyro.getValues()),
+                                                     horizontal_lidar)))
+    step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                               args=(np.array(gps.getValues()), np.array(gyro.getValues()),
+                                                     vertical_lidar)))
+    for update_thread in step_update_threads:
+        update_thread.start()
+    # wait for threads to finish
+    for update_thread in step_update_threads:
+        update_thread.join()
+
+    # read sensors
+
     roll, pitch, yaw = imu.getRollPitchYaw()
     altitude = gps.getValues()[2]
     
@@ -204,10 +243,7 @@ while robot.step(timestep) != -1:
     fr_input = vertical_thrust_base + vertical_input + roll_input + pitch_input + yaw_input
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
-        
-    #localisation -> mapping -> databse of map
-    pass
-    
+
      # Apply velocities
     front_left_motor.setVelocity(fl_input)
     front_right_motor.setVelocity(-fr_input)
