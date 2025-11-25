@@ -250,7 +250,7 @@ while robot.step(timestep) != -1:
     rear_left_motor.setVelocity(-rl_input)
     rear_right_motor.setVelocity(rr_input)
 
-    if ord("R") in pressed_keys:
-        print(path_planner.get_Path(path_planner.shortest_path((0, 0, 0), (2, 4, 4), np.array(grid)), (2, 4, 4)))
+    if ord("R") in pressed_keys:#start end map, end
+        print(path_planner.get_Path(path_planner.shortest_path(meters_to_blocks(gps.getValues(),BLOCK_LENGTH), mapping_inst.origin, mapping_inst.get_normalised(1000)), mapping_inst.origin))
 
 # Enter here exit cleanup code.
