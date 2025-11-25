@@ -1,13 +1,13 @@
 """drone_controller controller."""
 from mapping import Mapping, meters_to_blocks
 from path_planner import Path_Planner
-# You may need to import some classes of the controller module. Ex:
-#  from controller import Robot, Motor, DistanceSensor
-from controller import Robot, Motor, GPS, InertialUnit, Gyro, Keyboard
 from lidar import Lidar
 import numpy as np
 import math
 import threading
+
+from controller import Robot, Motor, GPS, InertialUnit, Gyro
+from controller import Keyboard
 
 BLOCK_LENGTH: float = 350  # The length of one side of the cube shaped 'block' which the world is split into in the map. In mm
 ROBOT_SIZE: int = 1  # How many blocks the lidar takes up. In blocks
@@ -21,35 +21,15 @@ robot = Robot()
 
 # get the time step of the current world.
 timestep = int(robot.getBasicTimeStep())
-grid = [
-    [   
-        [1,  1,  1,  0, -1],
-        [1,  1,  0,  0, -1],
-        [1,  1,  1,  1, -1],
-        [0,  0,  1,  1,  1],
-        [-1, -1, 1,  1,  1]
-    ],
-    [   
-        [1,  1,  1,  1,  1],
-        [1,  0,  0,  1, -1],
-        [1,  1,  1,  1, -1],
-        [1,  0,  1,  1,  1],
-        [-1, -1, 1,  0,  -1]
-    ],
-    [   
-        [1,  1,  0,  0,  0],
-        [1,  1,  1,  1, -1],
-        [0,  1,  1,  1, -1],
-        [0,  0,  1,  1,  1],
-        [-1,  1,  1,  1,  1]
-    ]
-]
+
 # create keyboard instance
 keyboard = Keyboard()
 keyboard.enable(timestep)
 
 path_planner: Path_Planner = Path_Planner()
-
+isPathPlanning = False
+path = []
+currentPathIndex = 0
 # You should insert a getDevice-like function in order to get the
 # instance of a device of the robot. Something like:
 #  motor = robot.getDevice('motorname')
@@ -192,24 +172,37 @@ while robot.step(timestep) != -1:
     while k != -1:
         pressed_keys.add(k)
         k = keyboard.getKey()
-
-    # Keyboard offsets
-    if ord("W") in pressed_keys:
-        x_offset += key_increment   # forward
-    if ord("S") in pressed_keys:
-        x_offset -= key_increment   # backward
-    if ord("A") in pressed_keys:
-        y_offset -= key_increment   # left
-    if ord("D") in pressed_keys:
-        y_offset += key_increment   # right
-    if Keyboard.LEFT in pressed_keys:
-        yaw_offset += yaw_increment   #rotate left
-    if Keyboard.RIGHT in pressed_keys:
-        yaw_offset -= yaw_increment    #rotate right
-    if Keyboard.UP in pressed_keys:
-        target_altitude += altitude_increment
-    if Keyboard.DOWN in pressed_keys:
-        target_altitude -= altitude_increment
+    #If path planning it will move to each block in shortest path until returned home
+    if isPathPlanning:
+        x,y,z = path[currentPathIndex]
+        current_x, current_y, current_z = gps.getValues()
+        x_offset = x - current_x
+        y_offset = y - current_y
+        target_altitude = z
+        var = 0.2
+        if abs(x_offset) < var and abs(y_offset) < var and abs(target_altitude - current_z) < var:
+            currentPathIndex = currentPathIndex + 1
+            if currentPathIndex >= len(path):
+                isPathPlanning = False
+        
+    else:
+        # Keyboard offsets
+        if ord("W") in pressed_keys:
+            x_offset += key_increment   # forward
+        if ord("S") in pressed_keys:
+            x_offset -= key_increment   # backward
+        if ord("A") in pressed_keys:
+            y_offset -= key_increment   # left
+        if ord("D") in pressed_keys:
+            y_offset += key_increment   # right
+        if Keyboard.LEFT in pressed_keys:
+            yaw_offset += yaw_increment   #rotate left
+        if Keyboard.RIGHT in pressed_keys:
+            yaw_offset -= yaw_increment    #rotate right
+        if Keyboard.UP in pressed_keys:
+            target_altitude += altitude_increment
+        if Keyboard.DOWN in pressed_keys:
+            target_altitude -= altitude_increment
         
     # Clamp altitude to safe range
     target_altitude = clamp(target_altitude, altitude_min, altitude_max)
@@ -243,14 +236,32 @@ while robot.step(timestep) != -1:
     fr_input = vertical_thrust_base + vertical_input + roll_input + pitch_input + yaw_input
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
+    #If R is pressed finds the path back and blocks all other inputs until completed
+    if ord("R") in pressed_keys and not isPathPlanning:
+       isPathPlanning = True
+       currentPathIndex = 0
+       path = path_planner.get_Path(
+           path_planner.shortest_path(
+               meters_to_blocks(
+                   gps.getValues(),
+                   BLOCK_LENGTH), 
+               mapping_inst.origin, 
+               mapping_inst.get_normalised(1000)), 
+               mapping_inst.origin)
+    # For debugging
+    if (prints > 0) and (loops % prints == 0):
+        pass
+        # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
+        # print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
+    loops += 1
 
+    #localisation -> mapping -> database of map
+    pass
+    
      # Apply velocities
     front_left_motor.setVelocity(fl_input)
     front_right_motor.setVelocity(-fr_input)
     rear_left_motor.setVelocity(-rl_input)
     rear_right_motor.setVelocity(rr_input)
-
-    if ord("R") in pressed_keys:#start end map, end
-        print(path_planner.get_Path(path_planner.shortest_path(meters_to_blocks(gps.getValues(),BLOCK_LENGTH), mapping_inst.origin, mapping_inst.get_normalised(1000)), mapping_inst.origin))
 
 # Enter here exit cleanup code.
