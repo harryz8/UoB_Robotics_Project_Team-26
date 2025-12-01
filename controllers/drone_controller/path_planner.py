@@ -15,6 +15,7 @@ class Path_Planner:
         #increase variable to make the drone try avoid obsticals to a greater extent
         minimize_distance = 1 
         #increase variable to make the drone fly a shorter path
+        goal_x, goal_y, goal_z = goal
         distanceArr = np.full(map.shape, np.inf, dtype=float)
         visited = np.full(map.shape, False)
         visitOrder = PriorityQueue()
@@ -49,7 +50,8 @@ class Path_Planner:
                 #cost of a point is its set avoid_risk multiplied by how confident there is a obstacle^2
                 #on top of the current distance and its minimize_distance variable
                 scaled_point = ((map[x, y, z] + 1000) / 2000) ** 2
-                cost = avoid_risk * scaled_point + minimize_distance + current_distance 
+                h = abs(x - goal_x) + abs(y - goal_y) + abs(z - goal_z)
+                cost = avoid_risk * scaled_point + minimize_distance + current_distance + h
                 #if its the lowest current cost to reach that position it is saved
                 if cost < distanceArr[x, y, z]:
                     distanceArr[x, y, z] = cost
