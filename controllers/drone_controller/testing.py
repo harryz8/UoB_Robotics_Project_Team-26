@@ -2,6 +2,7 @@ from mapping import *
 from lidar import Lidar
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 
 def visually_test_mask(map_inst: Mapping, mask: np.ndarray) -> np.ndarray:
@@ -40,6 +41,11 @@ def test_map_update(map_inst, lidar_inst):
     map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
     print(np.sign(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]))
     print(map_inst.get_normalised(maximum_certainty_log_odds=10000).shape)
+    plt.figure(figsize=(10, 10))
+    plt.axis('off')
+    plt.imshow(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4], cmap='gray')
+    plt.show()
+
 
 def test_initialise_blocks_in_range(robot_map):
     loc = robot_map.initialise_blocks_in_range(np.array([0, 0, 0]), 1)
@@ -80,8 +86,8 @@ if __name__ == "__main__":
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
     mymap = Mapping(250, 1)
-    test_initialise_blocks_in_range(mymap)
-    test_range_mask(mymap, mydar)
-    test_on_lidar_plane_mask(mymap, mydar)
-    # print(time_function(test_map_update, mymap, mydar))
+    # test_initialise_blocks_in_range(mymap)
+    # test_range_mask(mymap, mydar)
+    # test_on_lidar_plane_mask(mymap, mydar)
+    print(time_function(test_map_update, mymap, mydar))
     print("Everything passed")

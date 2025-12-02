@@ -202,8 +202,8 @@ class Mapping:
 
         # Calculate the rotation matrices for pitch roll and yaw
         roll_matrix = np.array([[1, 0, 0],
-                         [0, np.cos(robot_attitude[0]), -np.sin(robot_attitude[0])],
-                         [0, np.sin(robot_attitude[0]), np.cos(robot_attitude[0])]])
+                                [0, np.cos(robot_attitude[0]), -np.sin(robot_attitude[0])],
+                                [0, np.sin(robot_attitude[0]), np.cos(robot_attitude[0])]])
         pitch_matrix = np.array([[np.cos(robot_attitude[1]), 0, np.sin(robot_attitude[1])],
                                  [0, 1, 0],
                                  [-np.sin(robot_attitude[1]), 0, np.cos(robot_attitude[1])]])
@@ -256,7 +256,6 @@ class Mapping:
             update_amount = 0
 
             # is the reading in the block specified by indices
-            reading_dist = np.linalg.norm(reading_disp, axis=1)
             in_block = is_in_block(indices, reading_disp, self.block_length)
             collisions = np.zeros_like(in_block) + learning_rate_when_object
             update_amount += np.sum(collisions[in_block])
