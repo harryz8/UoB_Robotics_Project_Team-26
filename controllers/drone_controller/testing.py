@@ -51,7 +51,7 @@ def test_range_mask(map_inst, lidar_inst):
     mask = map_inst.get_lidar_range_mask(robot_loc, lidar_inst, map_inst.get_all_map_indexes())
     vals = blocks_to_meters(map_inst.get_all_map_indexes()[mask], map_inst.block_length) - robot_loc
     displacements = np.sqrt(np.sum(np.square(vals), axis=1))
-    print(visually_test_mask(map_inst, mask)[:, :, 4])
+    # print(visually_test_mask(map_inst, mask)[:, :, 4])
     assert (displacements <= 1).all(), "test_range_mask() failed."
 
 def test_on_lidar_plane_mask(map_instance: Mapping, lidar_inst: Lidar):
@@ -71,8 +71,8 @@ def test_on_lidar_plane_mask(map_instance: Mapping, lidar_inst: Lidar):
     temp_map = np.zeros_like(map_instance.get(10000))
     for index in indexes:
         temp_map[index[0], index[1], index[2]] = 1
-    print(temp_map[:, :, 4])
-    # assert (visually_test_mask(map_instance, mask)[:, :, 4] == 1).all()
+    # print(temp_map[:, :, 4])
+    assert temp_map.sum() == 37
 
 if __name__ == "__main__":
     range_image = 0.5 / np.cos(np.linspace(-np.pi / 2, np.pi / 2, 100))
