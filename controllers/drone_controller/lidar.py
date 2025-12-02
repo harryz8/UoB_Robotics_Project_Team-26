@@ -56,7 +56,7 @@ class Lidar:
         readings[:, 0][inf_mask] = 2*self.device.getMaxRange() + 1  # Put it beyond max range
         component_triangle_adj = np.cos(readings[:, 1]) * readings[:, 0]
         roll_triangle_hyp = np.sin(readings[:, 1]) * readings[:, 0]
-        reading_angle_components = angle_in_given_plane_to_two_components(robot_attitude[1].item(),
+        reading_angle_components = angle_in_given_plane_to_two_components(robot_attitude[0].item(),
                                                                                   roll_triangle_hyp,
                                                                                   component_triangle_adj)
         readings_xyz = np.zeros((3, readings.shape[0]))
@@ -73,6 +73,7 @@ class Lidar:
                 readings_xyz[num] = dist_from_robot
                 break
         self.__current_readings = readings_xyz.T
+        print(self.current_readings)
 
     @property
     def current_readings(self) -> np.ndarray:
