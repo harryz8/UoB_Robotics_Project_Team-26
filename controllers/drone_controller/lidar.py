@@ -1,5 +1,25 @@
 import numpy as np
-import mapping
+import math
+
+
+def angle_in_given_plane_to_two_components(
+        roll_angle_radians: float,
+        roll_triangle_hyp: np.ndarray,
+        component_triangle_adj: np.ndarray
+) -> np.ndarray:
+    first_roll_triangle_adj = roll_triangle_hyp * np.cos(roll_angle_radians)
+    ang = np.round(np.cos(np.pi / 2 - roll_angle_radians), 15)
+    if ang == 0.0:
+        second_roll_triangle_adj = 0
+    else:
+        second_roll_triangle_adj = roll_triangle_hyp * np.round(np.cos(np.pi / 2 - roll_angle_radians), 15)
+    if isinstance(second_roll_triangle_adj, np.ndarray):
+        nan_filter = np.isnan(second_roll_triangle_adj)
+        second_roll_triangle_adj[nan_filter] = 0
+    else:
+        second_roll_triangle_adj = 0 if math.isnan(second_roll_triangle_adj) else second_roll_triangle_adj
+    return np.array([np.arctan2(first_roll_triangle_adj, component_triangle_adj),
+                     np.arctan2(second_roll_triangle_adj, component_triangle_adj)])
 
 
 class Lidar:
@@ -29,7 +49,6 @@ class Lidar:
                                                                  robot_attitude[yaw_axis].item() + (self.device.getFov() / 2),
                                                                  self.device.getHorizontalResolution())))
 
-
     def update_current_readings(self, robot_attitude: np.ndarray):
         # get xyz position of lidar readings in relation to robot
         readings = self._get_readings_with_angle(robot_attitude)
@@ -37,7 +56,7 @@ class Lidar:
         readings[:, 0][inf_mask] = 2*self.device.getMaxRange() + 1  # Put it beyond max range
         component_triangle_adj = np.cos(readings[:, 1]) * readings[:, 0]
         roll_triangle_hyp = np.sin(readings[:, 1]) * readings[:, 0]
-        reading_angle_components = mapping.angle_in_given_plane_to_two_components(robot_attitude[1].item(),
+        reading_angle_components = angle_in_given_plane_to_two_components(robot_attitude[1].item(),
                                                                                   roll_triangle_hyp,
                                                                                   component_triangle_adj)
         readings_xyz = np.zeros((3, readings.shape[0]))

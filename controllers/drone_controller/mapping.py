@@ -12,52 +12,17 @@ def fix_zero_precision(array: np.ndarray) -> np.ndarray:
     return array
 
 
-def _angle_calc_arr(robot_loc_meters: np.ndarray,
-                    spec_loc_blocks: np.ndarray,
-                    block_length_meters: float,
-                    axes: tuple[int, int] = (0, 1)
-                    ) -> np.ndarray:
-    """
-    Calculates angle for vector between these two points in the plane axes[0] by axes[1] when spec_loc_blocks is an np.ndarray and robot_loc is in meters not blocks
-    :param robot_loc_meters: the x, y, z displacements of the drone from its original position. In meters
-    :param spec_loc_blocks: The specified location (or block) that is the other end of the vector to which we are measuring the angle. In blocks
-    :param block_length_meters: The length of one side of the blocks in meters
-    :param axes: The two axis in which plane the lidar is acting, corresponding to the drone
-    :return: the angle in radians
-    """
-    # Convert spec_loc_blocks to meters
-    lengths = (spec_loc_blocks*block_length_meters) + block_length_meters/2 - robot_loc_meters
-    lengths = fix_zero_precision(lengths)
-
-    # calculates the angle
-    return np.arctan2([lengths[:, axes[1]]], [lengths[:, axes[0]]])
-
-
-def angle_in_given_plane_to_two_components(
-        roll_angle_radians: float,
-        roll_triangle_hyp: np.ndarray,
-        component_triangle_adj: np.ndarray
-) -> np.ndarray:
-    first_roll_triangle_adj = roll_triangle_hyp * np.cos(roll_angle_radians)
-    ang = np.round(np.cos(np.pi / 2 - roll_angle_radians), 15)
-    if ang == 0.0:
-        second_roll_triangle_adj = 0
-    else:
-        second_roll_triangle_adj = roll_triangle_hyp * np.round(np.cos(np.pi / 2 - roll_angle_radians), 15)
-    if isinstance(second_roll_triangle_adj, np.ndarray):
-        nan_filter = np.isnan(second_roll_triangle_adj)
-        second_roll_triangle_adj[nan_filter] = 0
-    else:
-        second_roll_triangle_adj = 0 if math.isnan(second_roll_triangle_adj) else second_roll_triangle_adj
-    return np.array([np.arctan2(first_roll_triangle_adj, component_triangle_adj),
-                     np.arctan2(second_roll_triangle_adj, component_triangle_adj)])
-
-
 def meters_to_blocks(measurement_array: np.ndarray, block_length_meters: float) -> np.ndarray:
     return measurement_array // block_length_meters
 
 
 def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float) -> np.ndarray:
+    """
+    Calculates the displacements in each dimension of the centre of each block indexed by block_indices_array from the map origin
+    :param block_indices_array: a list of lists of indexes for each dimension of map, each list indexing one block
+    :param block_length_meters: the length of one size of a block in meters
+    :return: an np.ndarray containing a list of dimension many displacements for each block indexed by block_indices_array
+    """
     return block_indices_array * block_length_meters + block_length_meters/2
 
 
@@ -143,6 +108,10 @@ class Mapping:
         return robot_map_index
 
     def get_all_map_indexes(self) -> np.ndarray:
+        """
+        Creates a list of indexes to every block currently in the map
+        :return: that list as an np.ndarray
+        """
         with self._map_lock:
             return np.array(np.meshgrid(
                 np.arange(self.__map.shape[0]),
@@ -154,6 +123,14 @@ class Mapping:
                                            lidar_plane_axes: np.ndarray,
                                            all_map_indexes: np.ndarray,
                                            lidar_inst: Lidar) -> np.ndarray:
+        """
+        Takes a list of map indexes and filters out ones that index map blocks which the lidar does not scan in
+        :param robot_loc: the location of the robot from the map origin, in meters
+        :param lidar_plane_axes: vectors describing the direction of the lidar_plane's axes in terms of the map's axis
+        :param all_map_indexes: a list of map indexes to be filtered
+        :param lidar_inst: the Lidar object for the lidar which is scanning the map blocks whose indexes we are wanting
+        :return: a list of map indexes (np.ndarray) for the blocks in the map which are at least somewhat scanned by the lidar_inst
+        """
         yaw_axis = -1
         for axis in range(0, 3):
             if not (axis in lidar_inst.axis_from_robot):
@@ -180,8 +157,10 @@ class Mapping:
         coords_on_plane = filtered_indexes @ lidar_plane_axes
         plane_robot_loc = robot_loc @ lidar_plane_axes
         coords_on_plane_from_robot = coords_on_plane - plane_robot_loc
-        angle_from_lidar_1_axis = np.arctan2([coords_on_plane_from_robot[:, lidar_inst.axis_from_robot[1]]], [coords_on_plane_from_robot[:, lidar_inst.axis_from_robot[0]]])
-        fov_angle_mask = np.logical_and(angle_from_lidar_1_axis > -lidar_inst.device.getFov()/2, angle_from_lidar_1_axis < lidar_inst.device.getFov()/2)
+        angle_from_lidar_1_axis = np.arctan2([coords_on_plane_from_robot[:, lidar_inst.axis_from_robot[1]]],
+                                             [coords_on_plane_from_robot[:, lidar_inst.axis_from_robot[0]]])
+        fov_angle_mask = np.logical_and(angle_from_lidar_1_axis > -lidar_inst.device.getFov()/2,
+                                        angle_from_lidar_1_axis < lidar_inst.device.getFov()/2)
         return all_map_indexes[in_block_mask][fov_angle_mask.flatten()]
 
     def get_lidar_range_mask(self, robot_loc: np.ndarray, lidar_inst, all_map_indexes: np.ndarray) -> np.ndarray:
@@ -240,11 +219,24 @@ class Mapping:
 
         # ---- update map ----
 
-        all_map_indexes = self.get_all_map_indexes()
+        # get all map indexes in a square around the robot with minimum distance from the robot of the lidar max range
+        with self._map_lock:
+            square_range_plus = meters_to_blocks(
+                    robot_loc+lidar_inst.device.getMaxRange(), self.block_length)
+            square_range_minus = meters_to_blocks(
+                robot_loc - lidar_inst.device.getMaxRange(), self.block_length)
+            ranged_map_indexes =  np.array(np.meshgrid(
+                np.arange(np.maximum(0, square_range_minus[0]),
+                          np.minimum(self.__map.shape[0], square_range_plus[0].astype("i"))),
+                np.arange(np.maximum(0, square_range_minus[1]),
+                          np.minimum(self.__map.shape[1], square_range_plus[1].astype("i"))),
+                np.arange(np.maximum(0, square_range_minus[2]),
+                          np.minimum(self.__map.shape[2], square_range_plus[2].astype("i")))
+            )).T.reshape(-1, 3).astype("i")
 
         # filter map indexes to get those within lidar range and fov
-        range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst, all_map_indexes)
-        all_map_indexes = all_map_indexes[range_mask]
+        range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst, ranged_map_indexes)
+        all_map_indexes = ranged_map_indexes[range_mask]
         lidar_plane_axes = get_lidar_plane_axes_in_terms_of_map_axes(roll_matrix, pitch_matrix, yaw_matrix)
         learning_blocks_indices = self.restrict_map_indexes_to_within_fov(robot_loc, lidar_plane_axes, all_map_indexes, lidar_inst)
 
