@@ -73,7 +73,6 @@ class Lidar:
                 readings_xyz[num] = dist_from_robot
                 break
         self.__current_readings = readings_xyz.T
-        print(self.current_readings)
 
     @property
     def current_readings(self) -> np.ndarray:

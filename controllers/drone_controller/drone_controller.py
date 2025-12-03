@@ -228,13 +228,14 @@ while robot.step(timestep) != -1:
         # Ben
     # For debugging
     if (prints > 0) and (loops % prints == 0):
-        pass
-        print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]}\n\r\n\r")  # maximum_certainty_log_odds to be determined
-        # print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
+        # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]}\n\r\n\r")  # maximum_certainty_log_odds to be determined
+        print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
     loops += 1
 
     #localisation -> mapping -> database of map
-    pass
+    if ord("Q") in pressed_keys:
+        # Exit the loop and stop the controller
+        break
     
      # Apply velocities
     front_left_motor.setVelocity(fl_input)
@@ -243,3 +244,6 @@ while robot.step(timestep) != -1:
     rear_right_motor.setVelocity(rr_input)
 
 # Enter here exit cleanup code.
+
+# mapping_inst.get_visual_map(1, 4)
+mapping_inst.save_map()

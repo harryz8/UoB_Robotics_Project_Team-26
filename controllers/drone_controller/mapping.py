@@ -1,7 +1,7 @@
 import threading
 import numpy as np
 import math
-
+import matplotlib.pyplot as plt
 from lidar import Lidar
 
 
@@ -182,7 +182,7 @@ class Mapping:
             robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.__origin,
                                                           radius=lidar_inst.device.getMaxRange())
         robot_loc_blocks = robot_map_index  # - self.origin
-        robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder
+        robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder - self.block_length/2
         return robot_loc
 
     def update(self, robot_loc: np.ndarray, robot_attitude: np.ndarray, lidar_inst: Lidar):
@@ -271,7 +271,6 @@ class Mapping:
                 collisions = np.zeros_like(in_block) + learning_rate_when_empty
                 over_mask = np.linalg.norm(cur_disp - robot_loc, axis=1)//np.linalg.norm(block_step, axis=1) >= reading_dist_from_robot//np.linalg.norm(block_step, axis=1)
                 collisions[over_mask] = 0
-                # print(f"Collisions: {np.sum(collisions[in_block])}")
                 update_amount += np.sum(collisions[in_block])
                 cur_disp += block_step
 
@@ -299,6 +298,29 @@ class Mapping:
         limit_map = self.get(maximum_certainty_log_odds)
         map_copy = limit_map.copy()
         return map_copy / maximum_certainty_log_odds
+
+    def get_visual_map(self, axis, index):
+        """
+        Creates an image from any 2D slice of the map
+        :param axis: the axis to index
+        :param index: the index for that axis
+        :return: none
+        """
+        plt.figure(figsize=(10, 10))
+        plt.axis('off')
+        slicer = [slice(None), slice(None), slice(None)]
+        slicer[axis] = index
+        plt.imshow(np.negative(self.get_normalised(maximum_certainty_log_odds=10000))[tuple(slicer)], cmap='gray')
+        plt.show()
+
+    def save_map(self, filename = "map.txt"):
+        """
+        Saves map to requested filename in format in which numpy prints maps
+        :param filename: the text file in which to save the map
+        :return: none
+        """
+        with open(filename, "w") as map_file:
+            map_file.write(str(self))
 
     def __getitem__(self, key: tuple[int, int, int]) -> np.ndarray:
         """

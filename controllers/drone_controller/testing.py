@@ -2,7 +2,6 @@ from mapping import *
 from lidar import Lidar
 import numpy as np
 import time
-import matplotlib.pyplot as plt
 
 
 def visually_test_mask(map_inst: Mapping, mask: np.ndarray) -> np.ndarray:
@@ -41,10 +40,7 @@ def test_map_update(map_inst, lidar_inst):
     map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
     print(np.sign(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]))
     print(map_inst.get_normalised(maximum_certainty_log_odds=10000).shape)
-    plt.figure(figsize=(10, 10))
-    plt.axis('off')
-    plt.imshow(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4], cmap='gray')
-    plt.show()
+    map_inst.get_visual_map(2, 4)
 
 
 def test_initialise_blocks_in_range(robot_map):
