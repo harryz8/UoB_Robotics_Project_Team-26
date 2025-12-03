@@ -22,6 +22,30 @@ robot = Robot()
 # get the time step of the current world.
 timestep = int(robot.getBasicTimeStep())
 
+grid = [
+    [   
+        [1,  1,  1,  0, -1],
+        [1,  1,  0,  0, -1],
+        [1,  1,  1,  1, -1],
+        [0,  0,  1,  1,  1],
+        [-1, -1, 1,  1,  1]
+    ],
+    [   
+        [1,  1,  1,  1,  1],
+        [1,  0,  0,  1, -1],
+        [1,  1,  1,  1, -1],
+        [1,  0,  1,  1,  1],
+        [-1, -1, 1,  0,  -1]
+    ],
+    [   
+        [1,  1,  0,  0,  0],
+        [1,  1,  1,  1, -1],
+        [0,  1,  1,  1, -1],
+        [0,  0,  1,  1,  1],
+        [-1,  1,  1,  1,  1]
+    ]
+]
+
 # create keyboard instance
 keyboard = Keyboard()
 keyboard.enable(timestep)
@@ -174,11 +198,11 @@ while robot.step(timestep) != -1:
     #If path planning it will move to each block in shortest path until returned home
     if isPathPlanning:
         x,y,z = path[currentPathIndex]
-        current_x, current_y, current_z = gps.getValues()
+        current_x, current_y, current_z = tuple(np.array(gps.getValues()) + mapping_inst.origin)
         x_offset = x - current_x
         y_offset = y - current_y
         target_altitude = z
-        var = 0.2
+        var = 0.1
         if abs(x_offset) < var and abs(y_offset) < var and abs(target_altitude - current_z) < var:
             currentPathIndex = currentPathIndex + 1
             if currentPathIndex >= len(path):
@@ -236,21 +260,27 @@ while robot.step(timestep) != -1:
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
     #If R is pressed finds the path back and blocks all other inputs until completed
+    print(tuple(meters_to_blocks(
+                   np.array(gps.getValues()),
+                   BLOCK_LENGTH / 1000).astype(int)))
     if ord("R") in pressed_keys and not isPathPlanning:
+       print(mapping_inst.origin)
        isPathPlanning = True
        currentPathIndex = 0
        path = path_planner.get_Path(
            path_planner.shortest_path(
-               meters_to_blocks(
-                   gps.getValues(),
-                   BLOCK_LENGTH), 
-               mapping_inst.origin, 
+               tuple((meters_to_blocks(
+                   np.array(gps.getValues()),
+                   BLOCK_LENGTH / 1000) + mapping_inst.origin).astype(int)), 
+               tuple(mapping_inst.origin.astype(int)), 
                mapping_inst.get_normalised(1000)), 
-               mapping_inst.origin)
+               tuple(mapping_inst.origin.astype(int)))
+       print(path)
     # For debugging
     if (prints > 0) and (loops % prints == 0):
+        pass
         # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]}\n\r\n\r")  # maximum_certainty_log_odds to be determined
-        print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
+        # print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
     loops += 1
 
     #localisation -> mapping -> database of map

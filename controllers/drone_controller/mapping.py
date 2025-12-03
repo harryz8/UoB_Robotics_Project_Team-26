@@ -65,7 +65,7 @@ class Mapping:
         self._map_lock = threading.RLock()
         self._origin_lock = threading.RLock()
         self.__map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
-        self.__origin = np.array(map_init_shape) / 2  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
+        self.__origin = np.array(map_init_shape) // 2  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
         self.block_length = block_length_mm / 1000
         self.robot_size_blocks = robot_size_blocks
 
