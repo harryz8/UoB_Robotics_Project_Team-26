@@ -6,7 +6,13 @@ from lidar import Lidar
 
 
 def fix_zero_precision(array: np.ndarray) -> np.ndarray:
-    # handles precision error on zeros
+    """
+    NumPy and python as a whole has precision errors when doing operations on floats.
+    This causes the most errors when checking for zeros as they could be slightly off 0.
+    NumPy provides a function to handle this `np.isclose()` and I have used this to set values that should be 0 back to 0.
+    :param array: The array in which to change elements back to 0
+    :return: the array but with elements that should be 0 set to 0
+    """
     precision_error_mask = np.isclose(array, 0)
     array[precision_error_mask] = 0
     return array
