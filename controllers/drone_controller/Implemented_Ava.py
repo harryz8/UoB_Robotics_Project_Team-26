@@ -80,28 +80,12 @@ gps.enable(timestep)
 gyro = robot.getDevice("gyro")
 gyro.enable(timestep)
 
-
-
-#---------------------------------------------------------
 #----localization (particle filtering) initialization------
-N=1000 #number of particles
-#center particles around initial GPS reading
-initial_gps=gps.getValues()
-rng=np.random.default_rng()
-#space=(-5,5,-5,5,0,10) #x_min,x_max,y_min,y_max,z_min,z_max
-particles_position=np.zeros((N,6),float)
-weight=np.ones(N,dtype=float)/N
-#position
-particles_position[:,0]=rng.normal(initial_gps[0],0.3,N)
-particles_position[:,1]=rng.normal(initial_gps[1],0.3,N)
-particles_position[:,2]=rng.normal(initial_gps[2],0.5,N)
-#orientation
-particles_position[:,3]=rng.uniform(-np.pi,np.pi,N)
-particles_position[:,4]=0.0
-particles_position[:,5]=0.0
-weight=np.ones(N,dtype=float)/N
+N=500 #number of particles
+space=(-5,5,-5,5,0,10) #x_min,x_max,y_min,y_max,z_min,z_max
+particles_position,weight=initial_particles(N,space)
 #store previous GPS position for velocity computation
-prev_gps=None
+prev_gps=gps.getValues()
 timestep_=timestep/1000.0 # convert ms to seconds
 
 
@@ -114,50 +98,31 @@ while robot.step(timestep) != -1:
     # read sensors
     roll, pitch, yaw = imu.getRollPitchYaw()
     gps_values=gps.getValues()
-    altitude = gps_values[2]
+    altitude = gps.getValues()[2]
     roll_velocity, pitch_velocity, yaw_velocity= gyro.getValues()
     #-----localization:particle filter update------
-    if prev_gps is None:
-        prev_gps=gps_values
-    
-    else:
-    
-        #compute drone velocity in world frame from GPS difference
-        curr_gps=np.array(gps_values)
-        prev_gps_np=np.array(prev_gps)
-        v_world=(curr_gps-prev_gps_np)/timestep_
-        prev_gps=gps_values #update for next step
-        #convert velocity to body frame using current orientation
-        R=orientation_angle_matrix(yaw,pitch,roll)
-        drone_velocity=R.T@v_world #body frame velocity
-        # angular velocity from gyro
-        ang_velocity=np.array([roll_velocity,pitch_velocity,yaw_velocity])
-        #prediction step
-        prediction_step(particles_position,weight,drone_velocity,ang_velocity,timestep_)
-        ##DEBUG
-        if np.isnan(particles_position).any():
-                print("WARNING: NAN detected after prediction step!!")
-        #sensor updates
-        gps_update(particles_position,weight,gps_values,std=(0.3,0.3,0.6))
-        compass_update(particles_position,weight,yaw)
-        #resampling
-        Neff=important_particles(weight)
-        if Neff<N/2.0:
-            resample(particles_position,weight)
-        #Final state estimation
-        pf_position,pf_orientation=final_estimation(particles_position,weight)   
-        print(f"PF Position:{np.round(pf_position,3)} PF Orientation:{np.round(pf_orientation,3)}")
-        #print("GPS:", np.round(gps_values,3),
-             # "PF Pose:",np.round(pf_position,3),
-              #"yaw:",round(yaw,3),
-             # "PF yaw:",round(float(pf_orientation[0]),3))   
-        # GPS: raw sensor position
-        #PF pose: estimated position from particle filter
-        #yaw: raw IMU yaw
-        #PF yaw: yaw estimated
-#---------------------------------------------------------------           
-    
-    
+    #compute drone velocity in world frame from GPS difference
+    curr_gps=np.array(gps_values)
+    prev_gps_np=np.array(prev_gps)
+    v_world=(curr_gps-prev_gps_np)/timestep_
+    prev_gps=gps_values #update for next step
+    #convert velocity to body frame using current orientation
+    R=orientation_angle_matrix(yaw,pitch,roll)
+    drone_velocity=R.T@v_world #body frame velocity
+    # angular velocity from gyro
+    ang_velocity=np.array([roll_velocity,pitch_velocity,yaw_velocity])
+    #prediction step
+    prediction_step(particles_position,weight,drone_velocity,ang_velocity,timestep_)
+    #sensor updates
+    gps_update(particles_position,weight,gps_values)
+    compass_update(particles_position,weight,yaw)
+    #resampling
+    Neff=important_particles(weight)
+    if Neff<N/2:
+        resample(particles_position,weight)
+    #Final state estimation
+    pf_position,pf_orientation=final_estimation(particles_position,weight)   
+    print("GPS:", np.round(gps_values,3),"PF Pose:",np.round(pf_position,3),"yaw:",round(yaw,3),"PF yaw:",round(float(pf_orientation[0]),3))   
     
     
     
