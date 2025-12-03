@@ -27,18 +27,21 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/DogHouse.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/Wheelbarrow.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/WateringCan.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/robotstadium/protos/RobotstadiumSoccerField.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/UrbanFence.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/drinks/protos/BeerBottle.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/DrinkingFountain.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/vehicles/protos/bmw/BmwX5Simple.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/trees/protos/Forest.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/softbank/nao/protos/Cart.proto"
 
 WorldInfo {
+  defaultDamping Damping {
+    linear 0.5
+    angular 0.5
+  }
 }
 Viewpoint {
-  orientation -0.3566292905224852 -0.030489034233766858 0.933748342934498 3.3009191947419567
-  position 3.9024035868898626 0.32405405961499956 4.526344302093144
+  orientation 0.21569766240138402 -0.1684973219056425 -0.961812440627176 4.859354569144019
+  position -0.4818055408727898 -1.959855810711757 0.7622658885872735
 }
 TexturedBackground {
 }
@@ -59,14 +62,10 @@ Floor {
     }
   }
 }
-ControlledStreetLight {
-  translation -10 27 0.1
-  rotation 0 0 1 1.57079
-  name "street light(6)"
-}
 Mavic2Pro {
-  translation -0.01901797055780062 0.007378987323370674 0.07607242791830551
-  rotation -0.03440632225878519 -0.18881876552880208 -0.9814090272525537 0.3672951597318581
+  hidden rotation_7 0 0 1 6.041865030739715e-07
+  translation -0.11269920932191034 0.13742780120442508 0.0760726717746891
+  rotation 5.215926545599125e-05 -0.999999943295484 -0.0003326987217703642 0.0701117973505084
   controller "drone_controller"
   bodySlot [
     Lidar {
@@ -74,6 +73,7 @@ Mavic2Pro {
       rotation 0.0005630877364845465 0.7071066690861433 0.7071066690861433 3.14047
       name "vertical_lidar"
       horizontalResolution 128
+      fieldOfView 4.71239
       numberOfLayers 1
     }
     Lidar {
@@ -81,24 +81,13 @@ Mavic2Pro {
       rotation 0 0 1 3.14
       name "horizontal_lidar"
       horizontalResolution 128
+      fieldOfView 4.71239
       numberOfLayers 1
     }
   ]
 }
 BmwX5Simple {
   translation -21.44 42.38 0.35
-}
-BmwX5Simple {
-  translation 22.97 42.38 0.35
-  name "vehicle(1)"
-}
-BmwX5Simple {
-  translation 44.23 38.96 0.35
-  name "vehicle(2)"
-}
-Cart {
-  translation 8.155556276213145 -33.31330356048029 -0.0003105930380720018
-  rotation -0.0022753723817149304 -0.21323482181154474 -0.9769983282726349 0.0015767396272393396
 }
 ControlledStreetLight {
   translation -13.235 -40.2703 0.1
@@ -123,21 +112,6 @@ ControlledStreetLight {
   rotation 0 0 1 -1.5707953071795862
   name "street light(5)"
 }
-ControlledStreetLight {
-  translation -30 46.25 0.1
-  rotation 0 0 1 -1.5707953071795862
-  name "street light(8)"
-}
-ControlledStreetLight {
-  translation -50 46.25 0.2
-  rotation 0 0 1 -1.5707953071795862
-  name "street light(10)"
-}
-ControlledStreetLight {
-  translation -10 46.25 0.2
-  rotation 0 0 1 -1.5707953071795862
-  name "street light(9)"
-}
 Bench {
   translation -6.11 -12.32 4.08287e-06
   rotation 1.125079999996903e-14 -2.346409999993541e-06 0.9999999999972473 3.14159
@@ -152,32 +126,32 @@ DogHouse {
   translation -52.67 -36.85 0
 }
 BeerBottle {
-  translation -6.247415454338979 -10.934211742988474 -0.015195190126475952
-  rotation 4.098039635528276e-17 -2.616965451146584e-17 1 1.6302695412959525
+  translation -6.247415454338979 -10.934211742988474 -0.0023479999996525586
+  rotation 5.512579382332677e-17 5.465032468539042e-18 1 1.6302695412959525
   name "beer bottle(4)"
   mass 40
 }
 BeerBottle {
-  translation -6.339268090290189 -10.909739843991797 0.007536649095034221
-  rotation -0.2332308151905744 0.6751461782221643 0.6998435717198134 -2.7118054737925945
+  translation -6.341298656098349 -10.911056000565264 0.0244272497265533
+  rotation -0.2619008342167796 0.6707702524208279 0.6938841556800773 -2.772304488698941
   name "beer bottle(5)"
   mass 40
 }
 BeerBottle {
-  translation -6.233176481030372 -11.036605810869014 0.007532641134083397
-  rotation 0.7450829835454316 0.29934291773491795 0.5960244669751269 2.106747530894744
+  translation -6.233624764048469 -11.03799097650319 0.02442724972655344
+  rotation 0.7536322850215964 0.28200186564336877 0.593728327391229 2.1503681935069645
   name "beer bottle(6)"
   mass 40
 }
 BeerBottle {
-  translation -6.311551882157361 -10.974613474531324 0.007509775306548929
-  rotation 0.5095120410839608 -0.6033924494305503 0.6134452151257334 2.1667883386784763
+  translation -6.311779416221498 -10.99070997653585 0.008228628026128483
+  rotation 0.4145472265988142 -0.49470362587231265 0.7638186430482161 2.0009914234698316
   name "beer bottle(1)"
   mass 40
 }
 BeerBottle {
-  translation -6.447969314798188 -10.626412891897543 0.007536667410177486
-  rotation -0.21617508583130682 0.7540095025323883 -0.6202725226516869 2.193365042282051
+  translation -6.449210676693025 -10.628447082224909 0.024427249726553506
+  rotation -0.19070847161172166 0.7794742822093755 -0.5966993566526613 2.160561745952619
   name "beer bottle(3)"
   mass 40
 }
@@ -375,6 +349,11 @@ UrbanFence {
   rotation 0 0 -1 0.785401
   name "urban fence(11)"
 }
+RobotstadiumSoccerField {
+  translation -42 0 0.01
+  rotation 0 0 1 1.5707996938995747
+  postRadius 0.01
+}
 HouseWithGarage {
   translation 23.2403 10.7196 0
   rotation 0 0 1 -1.8325953071795862
@@ -431,8 +410,11 @@ Pole {
 DirectionPanel {
   translation 5.16 -8.47 1.74
   rotation 0 0 1 1.5708
+  frontTextTexture [
+    ""
+  ]
   backTextTexture [
-    "../resources/street.jpeg"
+    "../resources/street.jpg"
   ]
 }
 Roundabout {
@@ -572,121 +554,15 @@ StraightRoadSegment {
   castShadows TRUE
 }
 PicketFence {
+  translation 48.4924 -32.3203 0
+  rotation 0 0 1 1.309
+  numberOfSegments 3
+}
+PicketFence {
   translation 28.1884 -25.0007 0
   rotation 0 0 -1 -1.0472053071795866
   name "picket fence(1)"
   numberOfSegments 4
-}
-Forest {
-  translation -49.15 -1.95 0
-  shape [
-    -4 16
-    -4 -29
-    20 -20
-    25 20
-  ]
-  density 0.06
-  type "oak tree"
-  groundTexture [
-    "../resources/grass.jpg"
-  ]
-}
-Forest {
-  translation -17.09 -1.95 0
-  shape [
-    -1 -8
-    -3 -29
-    12 -28
-    11 -8
-  ]
-  density 0.06
-  type "oak tree"
-  groundTexture [
-    "../resources/grass.jpg"
-  ]
-}
-Forest {
-  translation -49.15 -1.95 0
-  shape [
-    -4 16
-    -4 -29
-    20 -20
-    25 20
-  ]
-  density 0.06
-  type "oak tree"
-  groundTexture [
-    "../resources/grass.jpg"
-  ]
-}
-Forest {
-  translation 4.08 -32.71 0
-  shape [
-    -35 20
-    -32 5
-    -22 9
-    1 5
-    29 20
-  ]
-  density 0.1
-  type "oak tree"
-  groundTexture [
-    "../resources/grass.jpg"
-  ]
-}
-Forest {
-  translation 4.08 -9.97 0
-  shape [
-    -35 16
-    -26 2
-    -23 11
-    -10 11
-    -19 21
-  ]
-  density 0.1
-  type "oak tree"
-  randomSeed 9
-  groundTexture [
-    "../resources/grass.jpg"
-  ]
-}
-PicketFence {
-  translation 14.8568 -17.6512 0
-  rotation 0 0 1 -0.523595307179586
-  name "picket fence(5)"
-  numberOfSegments 12
-}
-Bench {
-  translation -1.65895 -46.6444 0
-  rotation 0 0 -1 -1.5707953071795862
-}
-PicketFence {
-  translation 31.185 -26.6854 0
-  rotation 0 0 1 -0.523595307179586
-  name "picket fence(8)"
-  numberOfSegments 12
-}
-PicketFence {
-  translation 36.6787 -52.7811 0
-  rotation 0 0 -1 -2.6180053071795863
-  name "picket fence(10)"
-  numberOfSegments 14
-}
-PicketFence {
-  translation 21.68 -43.1515 0
-  rotation 0 0 1 -0.523595307179586
-  name "picket fence(9)"
-}
-PicketFence {
-  translation 4.64322 -35.3199 0
-  rotation 0 0 1 1.0472
-  name "picket fence(6)"
-  numberOfSegments 20
-}
-PicketFence {
-  translation 33.4271 -51.9399 0
-  rotation 0 0 1 1.0472
-  name "picket fence(7)"
 }
 PicketFence {
   translation -35.4159 -44.6114 0
@@ -746,7 +622,6 @@ CurvedRoadSegment {
   name "road(9)"
   rightBarrier TRUE
   leftBarrier TRUE
-  bottom TRUE
   totalAngle 1.5711
   locked FALSE
 }
@@ -793,16 +668,16 @@ Wall {
   size 0.2 1 2.99
 }
 Wall {
-  translation 3.61 26.6 0
+  translation 3.61 26.6 4.15813e-05
   rotation 0 1 0 4.6928012867022945e-06
   name "wall(7)"
   size 0.2 1 2.15
 }
 Wall {
-  translation -3.62 26.6 7.55132e-05
+  translation -3.62 23.93 7.55132e-05
   rotation 0 1 0 4.6928012867022945e-06
   name "wall(8)"
-  size 0.2 1 2.1
+  size 0.2 1 1.62
 }
 Road {
   translation 0 13 0.01
@@ -810,7 +685,6 @@ Road {
   name "road(4)"
   rightBarrier TRUE
   leftBarrier TRUE
-  bottom TRUE
   wayPoints [
     0 0 0
     5 0 0
