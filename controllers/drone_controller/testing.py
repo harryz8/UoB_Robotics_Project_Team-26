@@ -37,16 +37,17 @@ class TestDevice:
 
 
 def test_map_update(map_inst, lidar_inst):
-    map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
-    print(np.sign(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]))
+    map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([np.pi/2, 0, 0]), lidar_inst=lidar_inst)
+    print(np.sign(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, 4, :]))
     print(map_inst.get_normalised(maximum_certainty_log_odds=10000).shape)
-    map_inst.get_visual_map(2, 4)
+    # map_inst.get_visual_map(2, 4)
 
 
 def test_initialise_blocks_in_range(robot_map):
     loc = robot_map.initialise_blocks_in_range(np.array([0, 0, 0]), 1)
     assertion = loc == np.array([4, 4, 4])
     assert assertion.all(), "test_initialise_blocks_in_range() failed."
+
 
 def test_range_mask(map_inst, lidar_inst):
     robot_loc = map_inst.prepare_map_and_update_location(np.array([0, 0, 0]), lidar_inst)
@@ -55,6 +56,7 @@ def test_range_mask(map_inst, lidar_inst):
     displacements = np.sqrt(np.sum(np.square(vals), axis=1))
     # print(visually_test_mask(map_inst, mask)[:, :, 4])
     assert (displacements <= 1).all(), "test_range_mask() failed."
+
 
 def test_on_lidar_plane_mask(map_instance: Mapping, lidar_inst: Lidar):
     robot_loc = map_instance.prepare_map_and_update_location(np.array([0, 0, 0]), lidar_inst)
@@ -76,14 +78,15 @@ def test_on_lidar_plane_mask(map_instance: Mapping, lidar_inst: Lidar):
     # print(temp_map[:, :, 4])
     assert temp_map.sum() == 45
 
+
 if __name__ == "__main__":
     range_image = 0.5 / np.cos(np.linspace(-np.pi / 2, np.pi / 2, 100))
     range_image_filter = range_image > 1
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
     mymap = Mapping(250, 1)
-    test_initialise_blocks_in_range(mymap)
-    test_range_mask(mymap, mydar)
-    test_on_lidar_plane_mask(mymap, mydar)
-    # print(time_function(test_map_update, mymap, mydar))
+    # test_initialise_blocks_in_range(mymap)
+    # test_range_mask(mymap, mydar)
+    # test_on_lidar_plane_mask(mymap, mydar)
+    print(time_function(test_map_update, mymap, mydar))
     print("Everything passed")

@@ -250,9 +250,12 @@ class Mapping:
         current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
         learning_blocks_indices = np.delete(learning_blocks_indices, current_index, axis=0)
 
+        # learning_blocks_indices = self.get_all_map_indexes()  # TODO: REMOVE
+
         # Get the range readings from the lidar
         process_lidar_readings.join()
-        readings_vec_from_robot = lidar_inst.current_readings
+        readings_plane_xy = lidar_inst.current_readings
+        readings_vec_from_robot = (np.tile(lidar_plane_axes[lidar_inst.axis_from_robot[0]], (readings_plane_xy.shape[0], 1)).T*readings_plane_xy[:, 0] + np.tile(lidar_plane_axes[lidar_inst.axis_from_robot[1]], (readings_plane_xy.shape[0], 1)).T*readings_plane_xy[:, 1]).T
         reading_disp = readings_vec_from_robot + robot_loc
         reading_disp = reading_disp.astype(np.float32)
         reading_dist_from_robot = np.linalg.norm(readings_vec_from_robot, axis=1)
