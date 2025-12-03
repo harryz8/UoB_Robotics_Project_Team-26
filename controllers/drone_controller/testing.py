@@ -85,8 +85,8 @@ if __name__ == "__main__":
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
     mymap = Mapping(250, 1)
-    # test_initialise_blocks_in_range(mymap)
-    # test_range_mask(mymap, mydar)
-    # test_on_lidar_plane_mask(mymap, mydar)
-    print(time_function(test_map_update, mymap, mydar))
+    test_initialise_blocks_in_range(mymap)
+    test_range_mask(mymap, mydar)
+    test_on_lidar_plane_mask(mymap, mydar)
+    # print(time_function(test_map_update, mymap, mydar))
     print("Everything passed")
