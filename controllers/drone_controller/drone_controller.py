@@ -142,7 +142,6 @@ np.set_printoptions(edgeitems=30, linewidth=100000,
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-    key = keyboard.getKey()
 
     # Update the map given readings from both LIDARs
     # Using threads to speed up the process by running many operations in parallel
