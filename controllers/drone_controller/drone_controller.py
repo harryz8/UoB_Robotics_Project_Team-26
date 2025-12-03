@@ -144,7 +144,6 @@ np.set_printoptions(edgeitems=30, linewidth=100000,
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-    key = keyboard.getKey()
 
     # Update the map given readings from both LIDARs
     # Using threads to speed up the process by running many operations in parallel
@@ -250,13 +249,14 @@ while robot.step(timestep) != -1:
                mapping_inst.origin)
     # For debugging
     if (prints > 0) and (loops % prints == 0):
-        pass
-        # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
-        # print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
+        # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]}\n\r\n\r")  # maximum_certainty_log_odds to be determined
+        print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
     loops += 1
 
     #localisation -> mapping -> database of map
-    pass
+    if ord("Q") in pressed_keys:
+        # Exit the loop and stop the controller
+        break
     
      # Apply velocities
     front_left_motor.setVelocity(fl_input)
@@ -264,4 +264,5 @@ while robot.step(timestep) != -1:
     rear_left_motor.setVelocity(-rl_input)
     rear_right_motor.setVelocity(rr_input)
 
-# Enter here exit cleanup code.
+# mapping_inst.get_visual_map(1, 4)
+mapping_inst.save_map()
