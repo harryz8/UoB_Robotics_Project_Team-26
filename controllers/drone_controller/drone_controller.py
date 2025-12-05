@@ -150,7 +150,7 @@ particles_position[:,1]=rng.normal(initial_gps[1],0.3,N)
 particles_position[:,2]=rng.normal(initial_gps[2],0.5,N)
 #orientation
 particles_position[:,3]=rng.uniform(-np.pi,np.pi,N)
-particles_position[:,4]=0.0
+particles_position[:,4]=-0.07  # drone always sits at an angle of -0.07 due to its feet
 particles_position[:,5]=0.0
 weight=np.ones(N,dtype=float)/N
 #store previous GPS position for velocity computation
@@ -167,15 +167,55 @@ np.set_printoptions(edgeitems=30, linewidth=100000,
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
+    # read sensors
+    pf_position = np.array([0, 0, 0])
+    pf_orientation = np.array([0, -0.07, 0])  # the inial positions and orientations are zero
+    roll, pitch, yaw = imu.getRollPitchYaw()
+    gps_values = gps.getValues()
+    roll_velocity, pitch_velocity, yaw_velocity = gyro.getValues()
 
+    # ----- localization:particle filter update ------
+    if prev_gps is None:
+        prev_gps = gps_values
+
+    else:
+
+        # compute drone velocity in world frame from GPS difference
+        curr_gps = np.array(gps_values)
+        prev_gps_np = np.array(prev_gps)
+        v_world = (curr_gps - prev_gps_np) / timestep_
+        prev_gps = gps_values  # update for next step
+        # convert velocity to body frame using current orientation
+        R = orientation_angle_matrix(yaw, pitch, roll)
+        drone_velocity = R.T @ v_world  # body frame velocity
+        # angular velocity from gyro
+        ang_velocity = np.array([roll_velocity, pitch_velocity, yaw_velocity])
+        # prediction step
+        prediction_step(particles_position, weight, drone_velocity, ang_velocity, timestep_)
+        ##DEBUG
+        if np.isnan(particles_position).any():
+            raise ZeroDivisionError("WARNING: NAN detected after prediction step!!")
+        # sensor updates
+        gps_update(particles_position, weight, gps_values, std=(0.3, 0.3, 0.6))
+        compass_update(particles_position, weight, yaw)
+        # resampling
+        Neff = important_particles(weight)
+        if Neff < N / 2.0:
+            resample(particles_position, weight)
+        # Final state estimation
+        pf_position, pf_orientation = final_estimation(particles_position, weight)
+        # print(f"PF Position:{np.round(pf_position,3)} PF Orientation:{np.round(pf_orientation,3)}")
+    # ---------------------------------------------------------------
+
+    # ----- mappping: occupancy grid map -----
     # Update the map given readings from both LIDARs
     # Using threads to speed up the process by running many operations in parallel
     step_update_threads = []
     step_update_threads.append(threading.Thread(target=mapping_inst.update,
-                                               args=(np.array(gps.getValues()), np.array(gyro.getValues()),
+                                               args=(pf_position, np.flip(pf_orientation),
                                                      horizontal_lidar)))
     step_update_threads.append(threading.Thread(target=mapping_inst.update,
-                                               args=(np.array(gps.getValues()), np.array(gyro.getValues()),
+                                               args=(pf_position, np.flip(pf_orientation),
                                                      vertical_lidar)))
     for update_thread in step_update_threads:
         update_thread.start()
@@ -183,57 +223,11 @@ while robot.step(timestep) != -1:
     for update_thread in step_update_threads:
         update_thread.join()
 
-    # read sensors
-
-    roll, pitch, yaw = imu.getRollPitchYaw()
-    gps_values=gps.getValues()
-    altitude = gps_values[2]
-    roll_velocity, pitch_velocity, yaw_velocity= gyro.getValues()
-    #-----localization:particle filter update------
-    if prev_gps is None:
-        prev_gps=gps_values
-    
-    else:
-    
-        #compute drone velocity in world frame from GPS difference
-        curr_gps=np.array(gps_values)
-        prev_gps_np=np.array(prev_gps)
-        v_world=(curr_gps-prev_gps_np)/timestep_
-        prev_gps=gps_values #update for next step
-        #convert velocity to body frame using current orientation
-        R=orientation_angle_matrix(yaw,pitch,roll)
-        drone_velocity=R.T@v_world #body frame velocity
-        # angular velocity from gyro
-        ang_velocity=np.array([roll_velocity,pitch_velocity,yaw_velocity])
-        #prediction step
-        prediction_step(particles_position,weight,drone_velocity,ang_velocity,timestep_)
-        ##DEBUG
-        if np.isnan(particles_position).any():
-                print("WARNING: NAN detected after prediction step!!")
-        #sensor updates
-        gps_update(particles_position,weight,gps_values,std=(0.3,0.3,0.6))
-        compass_update(particles_position,weight,yaw)
-        #resampling
-        Neff=important_particles(weight)
-        if Neff<N/2.0:
-            resample(particles_position,weight)
-        #Final state estimation
-        pf_position,pf_orientation=final_estimation(particles_position,weight)   
-        print(f"PF Position:{np.round(pf_position,3)} PF Orientation:{np.round(pf_orientation,3)}")
-        #print("GPS:", np.round(gps_values,3),
-             # "PF Pose:",np.round(pf_position,3),
-              #"yaw:",round(yaw,3),
-             # "PF yaw:",round(float(pf_orientation[0]),3))   
-        # GPS: raw sensor position
-        #PF pose: estimated position from particle filter
-        #yaw: raw IMU yaw
-        #PF yaw: yaw estimated
-#---------------------------------------------------------------           
-    
-    
-    
-    
-    
+    # ----- Computer Assisted User Control -----
+    altitude = pf_position[2]
+    roll = pf_orientation[2]
+    pitch = pf_orientation[1]
+    yaw = pf_orientation[0]
     # stabilization
     roll_input = roll_gain * clamp(roll, -1.0, 1.0)
     pitch_input = pitch_gain * clamp(pitch, -1.0, 1.0)
@@ -307,6 +301,7 @@ while robot.step(timestep) != -1:
     if (prints > 0) and (loops % prints == 0):
         # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]}\n\r\n\r")  # maximum_certainty_log_odds to be determined
         print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
+        mapping_inst.get_visual_map(2, 3)
     loops += 1
 
     #localisation -> mapping -> database of map
