@@ -4,3 +4,4 @@
 ./controllers/drone_controller/venv/*
 __pycache__/
 *.pyc
+./controllers/drone_controller/map.json
