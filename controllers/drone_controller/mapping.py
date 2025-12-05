@@ -2,6 +2,7 @@ import threading
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+import json
 from lidar import Lidar
 
 
@@ -322,14 +323,34 @@ class Mapping:
         plt.imshow(np.negative(self.get_normalised(maximum_certainty_log_odds=10000))[tuple(slicer)], cmap='gray')
         plt.show()
 
-    def save_map(self, filename = "map.txt"):
+    def save_map(self, filename = "map.json"):
         """
-        Saves map to requested filename in format in which numpy prints maps
-        :param filename: the text file in which to save the map
+        Saves map and origin to filename in json format
+        :param filename: the file in which to save the map
         :return: none
         """
+        with self._map_lock:
+            dict_map_and_origin = {
+                "origin": self.origin.tolist(),
+                "map": self.__map.tolist()
+            }
+        json_map_and_origin = json.dumps(dict_map_and_origin)
         with open(filename, "w") as map_file:
-            map_file.write(str(self))
+            map_file.write(json_map_and_origin)
+
+    def load_map(self, filename = "map.json"):
+        """
+        Loads a json of a map and origin from a text file, and replace the current map and origin with those from the file
+        :param filename: the file from which to load the map
+        :return: none
+        """
+        with open(filename, "r") as map_file:
+            json_map_and_origin = map_file.read()
+            dict_map_and_origin = json.loads(json_map_and_origin)
+        with self._map_lock:
+            self.__map = np.array(dict_map_and_origin["map"])
+        with self._origin_lock:
+            self.__origin = np.array(dict_map_and_origin["origin"])
 
     def __getitem__(self, key: tuple[int, int, int]) -> np.ndarray:
         """
