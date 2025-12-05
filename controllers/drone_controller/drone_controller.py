@@ -1,5 +1,5 @@
 """drone_controller controller."""
-from mapping import Mapping, meters_to_blocks
+from mapping import Mapping, meters_to_blocks, blocks_to_meters
 from path_planner import Path_Planner
 from lidar import Lidar
 import numpy as np
@@ -197,13 +197,17 @@ while robot.step(timestep) != -1:
         k = keyboard.getKey()
     #If path planning it will move to each block in shortest path until returned home
     if isPathPlanning:
-        x,y,z = path[currentPathIndex]
-        current_x, current_y, current_z = tuple(np.array(gps.getValues()) + mapping_inst.origin)
-        x_offset = x - current_x
-        y_offset = y - current_y
+        index_tuple = path[currentPathIndex]
+        dist_arr = blocks_to_meters(np.array(index_tuple) - mapping_inst.origin, BLOCK_LENGTH/1000)
+        x,y,z = tuple(dist_arr)
+        print(x,y,z)
+        print(f"GPS: {gps.getValues()}")
+        current_x, current_y, current_z = tuple(np.array(gps.getValues()))
+        x_offset = x
+        y_offset = -y
         target_altitude = z
         var = 0.1
-        if abs(x_offset) < var and abs(y_offset) < var and abs(target_altitude - current_z) < var:
+        if abs(x_offset - current_x) < var and abs(y_offset - current_y) < var and abs(target_altitude - current_z) < var:
             currentPathIndex = currentPathIndex + 1
             if currentPathIndex >= len(path):
                 isPathPlanning = False
@@ -260,11 +264,11 @@ while robot.step(timestep) != -1:
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
     #If R is pressed finds the path back and blocks all other inputs until completed
-    print(tuple(meters_to_blocks(
-                   np.array(gps.getValues()),
-                   BLOCK_LENGTH / 1000).astype(int)))
+    # print(tuple(meters_to_blocks(
+                   # np.array(gps.getValues()),
+                   # BLOCK_LENGTH / 1000).astype(int)))
     if ord("R") in pressed_keys and not isPathPlanning:
-       print(mapping_inst.origin)
+       # print(mapping_inst.origin)
        isPathPlanning = True
        currentPathIndex = 0
        path = path_planner.get_Path(
@@ -275,7 +279,7 @@ while robot.step(timestep) != -1:
                tuple(mapping_inst.origin.astype(int)), 
                mapping_inst.get_normalised(1000)), 
                tuple(mapping_inst.origin.astype(int)))
-       print(path)
+       # print(path)
     # For debugging
     if (prints > 0) and (loops % prints == 0):
         pass
