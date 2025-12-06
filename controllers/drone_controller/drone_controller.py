@@ -1,5 +1,5 @@
 """drone_controller controller."""
-from mapping import Mapping, meters_to_blocks
+from mapping import Mapping, meters_to_blocks, blocks_to_meters
 from path_planner import Path_Planner
 from lidar import Lidar
 import numpy as np
@@ -21,6 +21,30 @@ robot = Robot()
 
 # get the time step of the current world.
 timestep = int(robot.getBasicTimeStep())
+
+grid = [
+    [   
+        [1,  1,  1,  0, -1],
+        [1,  1,  0,  0, -1],
+        [1,  1,  1,  1, -1],
+        [0,  0,  1,  1,  1],
+        [-1, -1, 1,  1,  1]
+    ],
+    [   
+        [1,  1,  1,  1,  1],
+        [1,  0,  0,  1, -1],
+        [1,  1,  1,  1, -1],
+        [1,  0,  1,  1,  1],
+        [-1, -1, 1,  0,  -1]
+    ],
+    [   
+        [1,  1,  0,  0,  0],
+        [1,  1,  1,  1, -1],
+        [0,  1,  1,  1, -1],
+        [0,  0,  1,  1,  1],
+        [-1,  1,  1,  1,  1]
+    ]
+]
 
 # create keyboard instance
 keyboard = Keyboard()
@@ -144,7 +168,6 @@ np.set_printoptions(edgeitems=30, linewidth=100000,
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-    key = keyboard.getKey()
 
     # Update the map given readings from both LIDARs
     # Using threads to speed up the process by running many operations in parallel
@@ -174,13 +197,17 @@ while robot.step(timestep) != -1:
         k = keyboard.getKey()
     #If path planning it will move to each block in shortest path until returned home
     if isPathPlanning:
-        x,y,z = path[currentPathIndex]
-        current_x, current_y, current_z = gps.getValues()
-        x_offset = x - current_x
-        y_offset = y - current_y
+        index_tuple = path[currentPathIndex]
+        dist_arr = blocks_to_meters(np.array(index_tuple) - mapping_inst.origin, BLOCK_LENGTH/1000)
+        x,y,z = tuple(dist_arr)
+        print(x,y,z)
+        print(f"GPS: {gps.getValues()}")
+        current_x, current_y, current_z = tuple(np.array(gps.getValues()))
+        x_offset = x
+        y_offset = -y
         target_altitude = z
-        var = 0.2
-        if abs(x_offset) < var and abs(y_offset) < var and abs(target_altitude - current_z) < var:
+        var = 0.1
+        if abs(x_offset - current_x) < var and abs(y_offset - current_y) < var and abs(target_altitude - current_z) < var:
             currentPathIndex = currentPathIndex + 1
             if currentPathIndex >= len(path):
                 isPathPlanning = False
@@ -237,26 +264,33 @@ while robot.step(timestep) != -1:
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
     #If R is pressed finds the path back and blocks all other inputs until completed
+    # print(tuple(meters_to_blocks(
+                   # np.array(gps.getValues()),
+                   # BLOCK_LENGTH / 1000).astype(int)))
     if ord("R") in pressed_keys and not isPathPlanning:
+       # print(mapping_inst.origin)
        isPathPlanning = True
        currentPathIndex = 0
        path = path_planner.get_Path(
            path_planner.shortest_path(
-               meters_to_blocks(
-                   gps.getValues(),
-                   BLOCK_LENGTH), 
-               mapping_inst.origin, 
+               tuple((meters_to_blocks(
+                   np.array(gps.getValues()),
+                   BLOCK_LENGTH / 1000) + mapping_inst.origin).astype(int)), 
+               tuple(mapping_inst.origin.astype(int)), 
                mapping_inst.get_normalised(1000)), 
-               mapping_inst.origin)
+               tuple(mapping_inst.origin.astype(int)))
+       # print(path)
     # For debugging
     if (prints > 0) and (loops % prints == 0):
         pass
-        # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)}\n\r\n\r")  # maximum_certainty_log_odds to be determined
+        # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]}\n\r\n\r")  # maximum_certainty_log_odds to be determined
         # print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
     loops += 1
 
     #localisation -> mapping -> database of map
-    pass
+    if ord("Q") in pressed_keys:
+        # Exit the loop and stop the controller
+        break
     
      # Apply velocities
     front_left_motor.setVelocity(fl_input)
@@ -264,4 +298,5 @@ while robot.step(timestep) != -1:
     rear_left_motor.setVelocity(-rl_input)
     rear_right_motor.setVelocity(rr_input)
 
-# Enter here exit cleanup code.
+# mapping_inst.get_visual_map(1, 4)
+mapping_inst.save_map()
