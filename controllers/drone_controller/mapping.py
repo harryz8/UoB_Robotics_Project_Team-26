@@ -20,6 +20,12 @@ def fix_zero_precision(array: np.ndarray) -> np.ndarray:
 
 
 def meters_to_blocks(measurement_array: np.ndarray, block_length_meters: float) -> np.ndarray:
+    """
+    Converts an array of measurements in meters to measurements in block lengths.
+    :param measurement_array: the array of measurements in meters
+    :param block_length_meters: the length of any side one of a block
+    :return: an array of the measurements in block lengths
+    """
     return measurement_array // block_length_meters
 
 
@@ -35,7 +41,8 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
 
 def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_length: float) -> bool:
     block_index_meters = blocks_to_meters(block_index, block_length)
-    return np.all((location_meters > (block_index_meters - block_length/2)) & (location_meters < (block_index_meters + block_length/2)), axis=1)
+    return np.all((location_meters > (block_index_meters - block_length/2)) &
+                  (location_meters < (block_index_meters + block_length/2)), axis=1)
 
 
 def get_lidar_plane_axes_in_terms_of_map_axes(roll_matrix: np.ndarray,
