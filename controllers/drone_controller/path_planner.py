@@ -54,7 +54,7 @@ class Path_Planner:
                 cost = avoid_risk * scaled_point + minimize_distance + current_distance + h
                 #if its the lowest current cost to reach that position it is saved
                 if cost < distanceArr[x, y, z]:
-                    distanceArr[x, y, z] = cost
+                    distanceArr[x, y, z] = cost - h
                     visitOrder.put((cost, (x, y, z)))
                     
                     previousNode[x, y, z] = current

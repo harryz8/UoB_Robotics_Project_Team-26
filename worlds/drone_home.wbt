@@ -27,7 +27,6 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/DogHouse.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/Wheelbarrow.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/WateringCan.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/robotstadium/protos/RobotstadiumSoccerField.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/UrbanFence.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/drinks/protos/BeerBottle.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/DrinkingFountain.proto"
@@ -41,8 +40,8 @@ WorldInfo {
   }
 }
 Viewpoint {
-  orientation -0.29308401261544426 0.02334633508586004 0.9558016060811413 2.72800678460186
-  position 14.89965741494108 -14.272018953379774 8.172864624091781
+  orientation -0.3752564355627601 -0.23021193040206944 0.8978780956618135 3.957444775729227
+  position 11.318266642632949 6.483230921539234 15.51208142210715
 }
 TexturedBackground {
 }
@@ -405,11 +404,6 @@ UrbanFence {
   rotation 0 0 -1 0.785401
   name "urban fence(11)"
 }
-RobotstadiumSoccerField {
-  translation -42 0 0.01
-  rotation 0 0 1 1.5707996938995747
-  postRadius 0.01
-}
 HouseWithGarage {
   translation 23.2403 10.7196 0
   rotation 0 0 1 -1.8325953071795862
@@ -508,7 +502,7 @@ DirectionPanel {
     "../resources/white.png"
   ]
   backTextTexture [
-    "../resources/street.jpg"
+    "../resources/street.jpeg"
   ]
 }
 Roundabout {
