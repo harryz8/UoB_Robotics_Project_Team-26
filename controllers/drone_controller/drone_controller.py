@@ -196,7 +196,9 @@ while robot.step(timestep) != -1:
     while k != -1:
         pressed_keys.add(k)
         k = keyboard.getKey()
+    # clamp val is to set over/under correcting
     clampVal = 0.001
+    # var is the distance from block in x,y and z axis
     var = 0.1
     if isPathPlanning:
         if currentPathIndex >= len(path):
@@ -210,7 +212,8 @@ while robot.step(timestep) != -1:
             z = (z_block - mapping_inst.origin[2]) * (BLOCK_LENGTH / 1000)
 
             current_x, current_y, current_z = gps.getValues()
-
+            # difference between current and target x,y,z in real distance
+            # x is flipped as the done moves backwards
             diff_x = current_x - x
             diff_y = y - current_y
             diff_z = z - current_z
@@ -220,6 +223,8 @@ while robot.step(timestep) != -1:
                 currentPathIndex += 1
     
             else:
+            # offsets are set to max or min of clamp value and can go no higher/lower 
+            # as to not over or under correct
                 x_offset += clamp(diff_x, -clampVal, clampVal)
                 y_offset += clamp(diff_y, -clampVal, clampVal)
                 target_altitude += clamp(diff_z, -clampVal, clampVal)
