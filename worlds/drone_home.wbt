@@ -27,11 +27,11 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/DogHouse.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/Wheelbarrow.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/garden/protos/WateringCan.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/robotstadium/protos/RobotstadiumSoccerField.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/UrbanFence.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/drinks/protos/BeerBottle.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/street_furniture/protos/DrinkingFountain.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/vehicles/protos/bmw/BmwX5Simple.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/trees/protos/Forest.proto"
 
 WorldInfo {
   defaultDamping Damping {
@@ -40,8 +40,8 @@ WorldInfo {
   }
 }
 Viewpoint {
-  orientation 0.21569766240138402 -0.1684973219056425 -0.961812440627176 4.859354569144019
-  position -0.4818055408727898 -1.959855810711757 0.7622658885872735
+  orientation -0.29308401261544426 0.02334633508586004 0.9558016060811413 2.72800678460186
+  position 14.89965741494108 -14.272018953379774 8.172864624091781
 }
 TexturedBackground {
 }
@@ -93,15 +93,27 @@ ControlledStreetLight {
   translation -13.235 -40.2703 0.1
   rotation 0 0 -1 -1.8325953071795862
   name "street light(2)"
+  controller "<none>"
 }
 ControlledStreetLight {
   translation 50 27 0
   rotation 0 0 1 1.57079
   name "street light(3)"
+  controller "<none>"
 }
 Barbecue {
   translation -49.0223 -51.7654 0
   rotation 0 0 -1 -1.0472053071795866
+}
+Barbecue {
+  translation 29.3275 -51.8192 0
+  rotation 0 0 -1 -1.0472053071795866
+  name "barbecue(1)"
+}
+Barbecue {
+  translation 39.2425 -34.6459 0
+  rotation 0 0 1 -1.8325853071795866
+  name "barbecue(2)"
 }
 DrinkingFountain {
   translation -12.23 -19.63 0
@@ -111,6 +123,7 @@ ControlledStreetLight {
   translation 50 46.25 0
   rotation 0 0 1 -1.5707953071795862
   name "street light(5)"
+  controller "<none>"
 }
 Bench {
   translation -6.11 -12.32 4.08287e-06
@@ -125,33 +138,41 @@ Bench {
 DogHouse {
   translation -52.67 -36.85 0
 }
+DogHouse {
+  translation 17.46 -36.85 0
+  name "dog house(1)"
+}
+DogHouse {
+  translation 34.78 -36.85 0
+  name "dog house(2)"
+}
 BeerBottle {
-  translation -6.247415454338979 -10.934211742988474 -0.0023479999996525586
-  rotation 5.512579382332677e-17 5.465032468539042e-18 1 1.6302695412959525
+  translation -6.247415454338979 -10.934211742988474 -0.015195999999999876
+  rotation 4.1579274760245354e-18 5.2307731230273635e-17 1 1.6302695412959525
   name "beer bottle(4)"
   mass 40
 }
 BeerBottle {
-  translation -6.341298656098349 -10.911056000565264 0.0244272497265533
-  rotation -0.2619008342167796 0.6707702524208279 0.6938841556800773 -2.772304488698941
+  translation -6.340933368272962 -10.911585847790437 0.007532578911211935
+  rotation -0.258545511046125 0.6615066364096054 0.7039624909779981 -2.767596035655109
   name "beer bottle(5)"
   mass 40
 }
 BeerBottle {
-  translation -6.233624764048469 -11.03799097650319 0.02442724972655344
-  rotation 0.7536322850215964 0.28200186564336877 0.593728327391229 2.1503681935069645
+  translation -6.234235856518471 -11.037781912445668 0.00753257891095982
+  rotation 0.7460801203022783 0.2787168653035047 0.6047159358617283 2.135910923061222
   name "beer bottle(6)"
   mass 40
 }
 BeerBottle {
-  translation -6.311779416221498 -10.99070997653585 0.008228628026128483
-  rotation 0.4145472265988142 -0.49470362587231265 0.7638186430482161 2.0009914234698316
+  translation -6.315994362005692 -10.976921761983627 0.0051535731436842345
+  rotation 0.45279565752525514 -0.6128156922944784 0.6476364873939014 2.2657179411296524
   name "beer bottle(1)"
   mass 40
 }
 BeerBottle {
-  translation -6.449210676693025 -10.628447082224909 0.024427249726553506
-  rotation -0.19070847161172166 0.7794742822093755 -0.5966993566526613 2.160561745952619
+  translation -6.449754542083544 -10.62810281612687 0.007532578911183234
+  rotation -0.18849776035760932 0.7717565821689938 -0.6073387623221479 2.1450959136249486
   name "beer bottle(3)"
   mass 40
 }
@@ -159,11 +180,13 @@ ControlledStreetLight {
   translation 30 27 0
   rotation 0 0 1 1.57079
   name "street light(4)"
+  controller "<none>"
 }
 ControlledStreetLight {
   translation 10 27 0
   rotation 0 0 1 1.57079
   name "street light(7)"
+  controller "<none>"
 }
 UrbanFence {
   translation -5.92958 -8.27042 0
@@ -334,6 +357,38 @@ UrbanFence {
   rotation 0 0 -0.9999999999999999 1.5707953071795862
   name "urban fence(8)"
 }
+Forest {
+  translation -43.23 0 -0.1
+  shape [
+    -10 17
+    -10 0
+    -10 -26
+    15 -17
+    22 25
+  ]
+  density 0.1
+  type "cherry tree"
+  randomSeed 2
+  groundTexture [
+    "../resources/grass.jpg"
+  ]
+}
+Forest {
+  translation 10.5 -42.33 -0.1
+  shape [
+    -39 10
+    -39 3
+    -15 -3
+    1 -28
+    4 10
+  ]
+  density 0.1
+  type "cherry tree"
+  randomSeed 2
+  groundTexture [
+    "../resources/grass.jpg"
+  ]
+}
 UrbanFence {
   translation -18.2711 -5.61892 0
   rotation 0 0 -0.9999999999999999 1.5707953071795862
@@ -349,11 +404,6 @@ UrbanFence {
   rotation 0 0 -1 0.785401
   name "urban fence(11)"
 }
-RobotstadiumSoccerField {
-  translation -42 0 0.01
-  rotation 0 0 1 1.5707996938995747
-  postRadius 0.01
-}
 HouseWithGarage {
   translation 23.2403 10.7196 0
   rotation 0 0 1 -1.8325953071795862
@@ -367,25 +417,63 @@ HouseWithGarage {
 ControlledStreetLight {
   translation 4.69 -13.05 0
   rotation 0 0 1 3.14159
+  controller "<none>"
 }
 ControlledStreetLight {
   translation 0.530274 -28.8204 0.1
   rotation 0 0 -1 -2.6179953071795863
   name "street light(1)"
+  controller "<none>"
 }
 Pergolas {
   translation -47.73 -41.8 0.23
+}
+Pergolas {
+  translation 19.16 -28.04 0.23
+  name "pergola(1)"
+}
+Pergolas {
+  translation 45.15 -40.45 0.23
+  name "pergola(2)"
 }
 SwingCouch {
   translation -46.725 -41.0855 0
   rotation 0 0 1 -2.094395307179586
 }
+SwingCouch {
+  translation 18.6671 -27.064 0
+  rotation 0 0 1 -2.094395307179586
+  name "swing couch(1)"
+}
+SwingCouch {
+  translation 44.9719 -40.959 0
+  rotation 0 0 1 -2.094395307179586
+  name "swing couch(2)"
+}
 WateringCan {
   translation -36.78 -45.69999999996056 -0.0003943452452050411
   rotation 0.9999999999999999 -1.3020048228071404e-13 9.624817929561078e-16 0.00010345773819917751
 }
+WateringCan {
+  translation 16.72 -45.27 -0.000349856
+  rotation 0.9999999999999999 -1.3020048228071404e-13 9.624817929561078e-16 0.00010345773819917751
+  name "watering can(1)"
+}
+WateringCan {
+  translation 34.82 -45.27 -0.000349856
+  rotation 0.9999999999999999 -1.3020048228071404e-13 9.624817929561078e-16 0.00010345773819917751
+  name "watering can(2)"
+}
 Wheelbarrow {
   translation -36 -46.22 0
+}
+Wheelbarrow {
+  translation 16.09 -46.22 0
+  name "wheelbarrow(1)"
+}
+Wheelbarrow {
+  translation 33.96 -46.22 0
+  name "wheelbarrow(2)"
 }
 HouseWithGarage {
   translation 24.5441 -17.006 0
@@ -411,10 +499,10 @@ DirectionPanel {
   translation 5.16 -8.47 1.74
   rotation 0 0 1 1.5708
   frontTextTexture [
-    ""
+    "../resources/white.png"
   ]
   backTextTexture [
-    "../resources/street.jpg"
+    "../resources/street.jpeg"
   ]
 }
 Roundabout {
@@ -563,6 +651,24 @@ PicketFence {
   rotation 0 0 -1 -1.0472053071795866
   name "picket fence(1)"
   numberOfSegments 4
+}
+PicketFence {
+  translation 15.4108 -52.7207 -3.85624e-20
+  rotation 3.52253e-14 -9.58979e-09 1 -3.1415853071795863
+  name "picket fence(5)"
+  numberOfSegments 20
+}
+PicketFence {
+  translation 33.6208 -52.7207 -1.2924e-18
+  rotation 3.52253e-14 -9.58979e-09 1 -3.1415853071795863
+  name "picket fence(6)"
+  numberOfSegments 15
+}
+PicketFence {
+  translation 48.6208 -52.7207 -2.32546e-18
+  rotation 3.52253e-14 -9.58979e-09 1 -3.1415853071795863
+  name "picket fence(7)"
+  numberOfSegments 16
 }
 PicketFence {
   translation -35.4159 -44.6114 0
