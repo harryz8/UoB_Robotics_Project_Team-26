@@ -66,7 +66,10 @@ class Path_Planner:
           current = tuple(goal)
           
           while current is not None:
-              path.append(current)
+              x = int(current[0])
+              y = int(current[1])
+              z = int(current[2])
+              path.append((x,y,z))
               current = previousNode[current]
           #path is reversed so it starts at start instead of goal 
           path.reverse()

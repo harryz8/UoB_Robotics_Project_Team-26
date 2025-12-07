@@ -5,6 +5,7 @@ from lidar import Lidar
 import numpy as np
 import math
 import threading
+from time import sleep
 
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
@@ -195,23 +196,34 @@ while robot.step(timestep) != -1:
     while k != -1:
         pressed_keys.add(k)
         k = keyboard.getKey()
-    #If path planning it will move to each block in shortest path until returned home
+    int clampVal = 0.001
+    int var = 0.1
     if isPathPlanning:
-        index_tuple = path[currentPathIndex]
-        dist_arr = blocks_to_meters(np.array(index_tuple) - mapping_inst.origin, BLOCK_LENGTH/1000)
-        x,y,z = tuple(dist_arr)
-        print(x,y,z)
-        print(f"GPS: {gps.getValues()}")
-        current_x, current_y, current_z = tuple(np.array(gps.getValues()))
-        x_offset = x
-        y_offset = -y
-        target_altitude = z
-        var = 0.1
-        if abs(x_offset - current_x) < var and abs(y_offset - current_y) < var and abs(target_altitude - current_z) < var:
-            currentPathIndex = currentPathIndex + 1
-            if currentPathIndex >= len(path):
-                isPathPlanning = False
-        
+        if currentPathIndex >= len(path):
+            isPathPlanning = False
+            print("Finished Path Planning")
+        else:
+            x_block, y_block, z_block = path[currentPathIndex]
+    
+            x = (x_block - mapping_inst.origin[0]) * (BLOCK_LENGTH / 1000)
+            y = (y_block - mapping_inst.origin[1]) * (BLOCK_LENGTH / 1000)
+            z = (z_block - mapping_inst.origin[2]) * (BLOCK_LENGTH / 1000)
+
+            current_x, current_y, current_z = gps.getValues()
+
+            diff_x = current_x - x
+            diff_y = y - current_y
+            diff_z = z - current_z
+
+            if abs(diff_x) < 0.10 and abs(diff_y) < 0.10 and abs(diff_z) < 0.10:
+                print("Reached point:", path[currentPathIndex])
+                currentPathIndex += 1
+    
+            else:
+                x_offset += clamp(diff_x, -0.001, 0.001)
+                y_offset += clamp(diff_y, -0.001, 0.001)
+                target_altitude += clamp(diff_z, -0.001, 0.001)
+    
     else:
         # Keyboard offsets
         if ord("W") in pressed_keys:
@@ -271,15 +283,17 @@ while robot.step(timestep) != -1:
        # print(mapping_inst.origin)
        isPathPlanning = True
        currentPathIndex = 0
+       floor_goal = tuple(mapping_inst.origin.astype(int))
+       goal = (floor_goal[0], floor_goal[1], floor_goal[2] + 3)
        path = path_planner.get_Path(
            path_planner.shortest_path(
                tuple((meters_to_blocks(
                    np.array(gps.getValues()),
                    BLOCK_LENGTH / 1000) + mapping_inst.origin).astype(int)), 
-               tuple(mapping_inst.origin.astype(int)), 
+               goal, 
                mapping_inst.get_normalised(1000)), 
-               tuple(mapping_inst.origin.astype(int)))
-       # print(path)
+               goal)
+       print(path)
     # For debugging
     if (prints > 0) and (loops % prints == 0):
         pass
