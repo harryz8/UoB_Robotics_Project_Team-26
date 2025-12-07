@@ -196,33 +196,33 @@ while robot.step(timestep) != -1:
     while k != -1:
         pressed_keys.add(k)
         k = keyboard.getKey()
-    int clampVal = 0.001
-    int var = 0.1
+    clampVal = 0.001
+    var = 0.1
     if isPathPlanning:
         if currentPathIndex >= len(path):
             isPathPlanning = False
             print("Finished Path Planning")
         else:
-            x_block, y_block, z_block = path[currentPathIndex]
+            index_tuple = path[currentPathIndex]
     
-            x = (x_block - mapping_inst.origin[0]) * (BLOCK_LENGTH / 1000)
-            y = (y_block - mapping_inst.origin[1]) * (BLOCK_LENGTH / 1000)
-            z = (z_block - mapping_inst.origin[2]) * (BLOCK_LENGTH / 1000)
-
+            dist_arr = blocks_to_meters(np.array(index_tuple) - mapping_inst.origin, BLOCK_LENGTH/1000)
+            x,y,z = tuple(dist_arr)
             current_x, current_y, current_z = gps.getValues()
+            print("gps meters:", gps.getValues())
+            print("block coords:", x,y,z)
+            
 
-            diff_x = current_x - x
+            diff_x = x - current_x
             diff_y = y - current_y
             diff_z = z - current_z
-
+            print("diff", diff_x, " ", diff_y, " ",  diff_z)
             if abs(diff_x) < 0.10 and abs(diff_y) < 0.10 and abs(diff_z) < 0.10:
                 print("Reached point:", path[currentPathIndex])
                 currentPathIndex += 1
-    
             else:
-                x_offset += clamp(diff_x, -0.001, 0.001)
-                y_offset += clamp(diff_y, -0.001, 0.001)
-                target_altitude += clamp(diff_z, -0.001, 0.001)
+                x_offset -= diff_x * 0.005
+                y_offset += diff_y * 0.005
+                target_altitude += diff_z * 0.005
     
     else:
         # Keyboard offsets
@@ -283,16 +283,14 @@ while robot.step(timestep) != -1:
        # print(mapping_inst.origin)
        isPathPlanning = True
        currentPathIndex = 0
-       floor_goal = tuple(mapping_inst.origin.astype(int))
-       goal = (floor_goal[0], floor_goal[1], floor_goal[2] + 3)
        path = path_planner.get_Path(
            path_planner.shortest_path(
                tuple((meters_to_blocks(
                    np.array(gps.getValues()),
                    BLOCK_LENGTH / 1000) + mapping_inst.origin).astype(int)), 
-               goal, 
+               tuple(mapping_inst.origin.astype(int)), 
                mapping_inst.get_normalised(1000)), 
-               goal)
+               tuple(mapping_inst.origin.astype(int)))
        print(path)
     # For debugging
     if (prints > 0) and (loops % prints == 0):
