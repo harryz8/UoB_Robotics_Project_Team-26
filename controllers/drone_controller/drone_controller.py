@@ -196,7 +196,7 @@ while robot.step(timestep) != -1:
     while k != -1:
         pressed_keys.add(k)
         k = keyboard.getKey()
-    clampVal = 0.001
+    clampVal = 0.005
     var = 0.1
     if isPathPlanning:
         if currentPathIndex >= len(path):
@@ -216,13 +216,13 @@ while robot.step(timestep) != -1:
             diff_y = y - current_y
             diff_z = z - current_z
             print("diff", diff_x, " ", diff_y, " ",  diff_z)
-            if abs(diff_x) < 0.10 and abs(diff_y) < 0.10 and abs(diff_z) < 0.10:
+            if abs(diff_x) < var and abs(diff_y) < var and abs(diff_z) < var:
                 print("Reached point:", path[currentPathIndex])
                 currentPathIndex += 1
             else:
-                x_offset -= diff_x * 0.005
-                y_offset += diff_y * 0.005
-                target_altitude += diff_z * 0.005
+                x_offset -= diff_x * clampVal
+                y_offset += diff_y * clampVal
+                target_altitude += diff_z * clampVal
     
     else:
         # Keyboard offsets
