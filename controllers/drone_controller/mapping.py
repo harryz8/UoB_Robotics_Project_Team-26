@@ -112,6 +112,12 @@ class Mapping:
             return self.__origin - prev_start
 
     def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
+        """
+        Extends the map to include all map indexes in a cube around the robot where any side of the cube is at its closest radius distance away from the robot_map_index
+        :param robot_map_index: the index of the block in which the robot is located
+        :param radius: the maximum distance away on any axis both on the positive and negative direction that and indexes need to be initialised for
+        :return: the robot_map_index after the shift to the map indexes caused by the extending of the map
+        """
         new_blocks_max_dist: int = math.ceil(radius / self.block_length)
         # generate all map indexes in a cube where any side of the cube is at its closest radius distance away from the robot_map_index
         new_blocks: list[tuple[int, int, int]] = [(x, y, z)
@@ -125,6 +131,7 @@ class Mapping:
                                                                  robot_map_index[2].astype(
                                                                      "i") + new_blocks_max_dist + 1)]
         change_vec = np.zeros(3)
+        # extends the map to the most negative coordinate in new_blocks and the most positive coordinate in new_blocks
         for new_block in [min(new_blocks), max(new_blocks)]:
             with self._map_lock:
                 if not ((new_block[0] + change_vec[0] < self.__map.shape[0]) and (
@@ -136,6 +143,7 @@ class Mapping:
                     change_vec = change_vec + self._extend_to((int(new_block[0] + change_vec[0]),
                                                                int(new_block[1] + change_vec[1]),
                                                                int(new_block[2] + change_vec[2])))
+        # returns the robot_map_index after the shift to the map indexes caused by the extending of the map
         robot_map_index = (robot_map_index + change_vec).astype("i")
         return robot_map_index
 
@@ -163,6 +171,7 @@ class Mapping:
         :param lidar_inst: the Lidar object for the lidar which is scanning the map blocks whose indexes we are wanting
         :return: a list of map indexes (np.ndarray) for the blocks in the map which are at least somewhat scanned by the lidar_inst
         """
+        # find the axis that's not in lidar_inst.axis_from_robot
         yaw_axis = -1
         for axis in range(0, 3):
             if not (axis in lidar_inst.axis_from_robot):
@@ -186,13 +195,16 @@ class Mapping:
             shortest_disp_from_plane < self.block_length / 2
         ), axis=1)
         filtered_indexes = disp_from_axes[in_block_mask]
+        # Convert filtered_indexes to coords on the lidar plane with the robot as the plane origin
         coords_on_plane = filtered_indexes @ lidar_plane_axes
         plane_robot_loc = robot_loc @ lidar_plane_axes
         coords_on_plane_from_robot = coords_on_plane - plane_robot_loc
+        # Create a mask which keeps only indexes which fall in the robots FOV
         angle_from_lidar_1_axis = np.arctan2([coords_on_plane_from_robot[:, lidar_inst.axis_from_robot[1]]],
                                              [coords_on_plane_from_robot[:, lidar_inst.axis_from_robot[0]]])
         fov_angle_mask = np.logical_and(angle_from_lidar_1_axis > -lidar_inst.device.getFov()/2,
                                         angle_from_lidar_1_axis < lidar_inst.device.getFov()/2)
+        # Return all the indexes of the map which are within the lidar scanning plane and the fov angle
         return all_map_indexes[in_block_mask][fov_angle_mask.flatten()]
 
     def get_lidar_range_mask(self, robot_loc: np.ndarray, lidar_inst, all_map_indexes: np.ndarray) -> np.ndarray:
@@ -207,6 +219,12 @@ class Mapping:
         return np.sqrt(np.sum(np.square(dist_from_robot), axis=1)) <= lidar_inst.device.getMaxRange()
 
     def prepare_map_and_update_location(self, robot_loc: np.ndarray, lidar_inst) -> np.ndarray:
+        """
+        Starts the process of extending the map and adjusts the robot_loc as the map shifts
+        :param robot_loc: the displacement of the robot in meters
+        :param lidar_inst: the Lidar object for the LiDAR currently in use
+        :return: the robot_loc after the map shifts
+        """
         # extend map
         robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length)
         robot_loc_remainder = robot_loc % self.block_length
