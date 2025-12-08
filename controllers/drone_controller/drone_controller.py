@@ -29,12 +29,6 @@ keyboard.enable(timestep)
 
 path_planner: Path_Planner = Path_Planner()
 
-# You should insert a getDevice-like function in order to get the
-# instance of a device of the robot. Something like:
-#  motor = robot.getDevice('motorname')
-#  ds = robot.getDevice('dsname')
-#  ds.enable(timestep)
-
 # getting all motors
 front_left_motor = robot.getDevice("front left propeller")
 front_right_motor = robot.getDevice("front right propeller")
@@ -157,19 +151,12 @@ weight=np.ones(N,dtype=float)/N
 prev_gps=None
 timestep_=timestep/1000.0 # convert ms to seconds
 
-
-# for debugging
-loops = 0
-prints = 10
-np.set_printoptions(edgeitems=30, linewidth=100000,
-                    formatter=dict(float=lambda x: "%.3g" % x))
-
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
     # read sensors
-    pf_position = np.array([0, 0, 0])
-    pf_orientation = np.array([0, -0.07, 0])  # the inial positions and orientations are zero
+    pf_position = np.array([0, 0, 0])  # the initial position is zero on every axis
+    pf_orientation = np.array([0, -0.07, 0])  # the initial orientation is zero on every axis except the drone always sits on the ground at an angle of -0.07 due to its feet, so the pitch starts at -0.07
     roll, pitch, yaw = imu.getRollPitchYaw()
     gps_values = gps.getValues()
     roll_velocity, pitch_velocity, yaw_velocity = gyro.getValues()
@@ -219,7 +206,7 @@ while robot.step(timestep) != -1:
                                                      vertical_lidar)))
     for update_thread in step_update_threads:
         update_thread.start()
-    # wait for threads to finish
+    # wait for threads to finish - we don't want the drone moving whilst readings are being taken
     for update_thread in step_update_threads:
         update_thread.join()
 
@@ -291,20 +278,9 @@ while robot.step(timestep) != -1:
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
 
-
     if ord("R") in pressed_keys:
        print(path_planner.test())  
-       pass
-       
-        # Ben
-    # For debugging
-    if (prints > 0) and (loops % prints == 0):
-        # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]}\n\r\n\r")  # maximum_certainty_log_odds to be determined
-        print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
-        mapping_inst.get_visual_map(2, 3)
-    loops += 1
 
-    #localisation -> mapping -> database of map
     if ord("Q") in pressed_keys:
         # Exit the loop and stop the controller
         break
