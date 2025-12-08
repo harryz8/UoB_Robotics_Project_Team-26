@@ -77,11 +77,10 @@ class Mapping:
     """
     prior = 0  # priors are 0
 
-    def __init__(self, block_length_mm: float, robot_size_blocks: int, map_init_shape: tuple[int, int, int] = (1,1,1)):
+    def __init__(self, block_length_mm: float, map_init_shape: tuple[int, int, int] = (1,1,1)):
         """
         Creates the Mapping object
-        :param block_length_mm: the length of a side of the cube shaped blocks that the world is split into for the map
-        :param robot_size_blocks: The size of the longest side of the robot in blocks
+        :param block_length_mm: the length of a side of the cube shaped blocks that the world is split into for the map. It must be longer than the longest side of the drone
         :param map_init_shape: the size of the initial map. A balance must be struck, because too large of a map causes too much memory to be used whereas too small of a map causes lots of map copy operations to increase its size later on
         """
         # Sets up locks to protect shared variables from concurrency issues of threading this object's methods
@@ -92,7 +91,6 @@ class Mapping:
         self.__map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
         self.__origin = np.array(map_init_shape) // 2  # The original location of the robot on the map, measured in blocks. Assumes the drone starts at 0 meters from home in any direction
         self.block_length = block_length_mm / 1000  # convert block_length to meters
-        self.robot_size_blocks = robot_size_blocks
 
     def _extend_to(self, coords: tuple[int, int, int]) -> np.ndarray:
         """

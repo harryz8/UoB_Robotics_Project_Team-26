@@ -11,7 +11,6 @@ from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
 
 BLOCK_LENGTH: float = 350  # The length of one side of the cube shaped 'block' which the world is split into in the map. In mm
-ROBOT_SIZE: int = 1  # How many blocks the lidar takes up. In blocks
 
 #clamps values
 def clamp(value, low, high):
@@ -114,7 +113,7 @@ vertical_lidar: Lidar = Lidar(vertical_lidar_device,
                           )
 
 # create the map in a Mapping object
-mapping_inst: Mapping = Mapping(BLOCK_LENGTH, ROBOT_SIZE)
+mapping_inst: Mapping = Mapping(BLOCK_LENGTH)
 
 #get inertial unit
 imu = robot.getDevice("inertial unit")
