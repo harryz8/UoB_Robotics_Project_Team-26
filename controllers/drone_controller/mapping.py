@@ -90,7 +90,7 @@ class Mapping:
         self._map_lock = threading.RLock()
         self._origin_lock = threading.RLock()
         self.__map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
-        self.__origin = np.array(map_init_shape) / 2  # The original location of the robot on the map, measured in blocks. Assumes the drone starts at 0 meters from home in any direction
+        self.__origin = np.array(map_init_shape) // 2  # The original location of the robot on the map, measured in blocks. Assumes the drone starts at 0 meters from home in any direction
         self.block_length = block_length_mm / 1000  # convert block_length to meters
         self.robot_size_blocks = robot_size_blocks
 
@@ -213,9 +213,8 @@ class Mapping:
         robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length)
         robot_loc_remainder = robot_loc % self.block_length
         with self._origin_lock:
-            robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.__origin,
-                                                          radius=lidar_inst.device.getMaxRange())
-        robot_loc_blocks = robot_map_index  # - self.origin
+            robot_loc_blocks = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.__origin,
+                                                               radius=lidar_inst.device.getMaxRange())
         robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder - self.block_length/2
         return robot_loc
 
