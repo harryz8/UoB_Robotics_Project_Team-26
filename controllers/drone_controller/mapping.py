@@ -40,18 +40,33 @@ def blocks_to_meters(block_indices_array: np.ndarray, block_length_meters: float
 
 
 def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_length: float) -> bool:
+    """
+    Figures out whether the given location is inside the block specified by block_index
+    :param block_index: the index of the block in an occupancy map
+    :param location_meters: an array describing the location of the position to be checked whether it is in the block. This should be in meters along each axis from the current (0,0,0) point of the map (rather than the origin described by __origin)
+    :param block_length: the side length of any one of the sides of a block in meters
+    :return: a boolean value indicating if the location is inside the block specified by block_index or not
+    """
     block_index_meters = blocks_to_meters(block_index, block_length)
     return np.all((location_meters > (block_index_meters - block_length/2)) &
                   (location_meters < (block_index_meters + block_length/2)), axis=1)
 
 
 def get_lidar_plane_axes_in_terms_of_map_axes(roll_matrix: np.ndarray,
-                                       pitch_matrix: np.ndarray,
-                                       yaw_matrix: np.ndarray):
+                                              pitch_matrix: np.ndarray,
+                                              yaw_matrix: np.ndarray):
+    """
+    Calculates the direction of the axes of the Li-DAR plane in the map's space.
+    The axes start out as the same as that of the map but are then rotated by the robot's attitude as described by the rotation matrices input.
+    :param roll_matrix: the rotation matrix describing the roll angle of the robot
+    :param pitch_matrix: the rotation matrix describing the pitch angle of the robot
+    :param yaw_matrix: the rotation matrix describing the yaw angle of the robot
+    :return: an np.ndarray containing vectors describing the direction of the plane axes in the map's space
+    """
     # prepare plane axes as if robot had roll, pitch, yaw all = 0
     robot_lidar_plane_axes_in_terms_of_map_axes = np.identity(3)
+    rotate_all = np.matmul(yaw_matrix, np.matmul(roll_matrix, pitch_matrix))  # the combined rotation matrix
     # get plane axes under robot roll, pitch, yaw
-    rotate_all = np.matmul(yaw_matrix, np.matmul(roll_matrix, pitch_matrix))
     robot_lidar_plane_axes_in_terms_of_map_axes = fix_zero_precision(np.matmul(robot_lidar_plane_axes_in_terms_of_map_axes, rotate_all))
     return robot_lidar_plane_axes_in_terms_of_map_axes.copy()
 
@@ -69,33 +84,38 @@ class Mapping:
         :param robot_size_blocks: The size of the longest side of the robot in blocks
         :param map_init_shape: the size of the initial map. A balance must be struck, because too large of a map causes too much memory to be used whereas too small of a map causes lots of map copy operations to increase its size later on
         """
-        # https://stackoverflow.com/questions/53026825/global-lock-causing-my-program-to-stop-running - Explains use of RLock
+        # Sets up locks to protect shared variables from concurrency issues of threading this object's methods
+        # https://www.geeksforgeeks.org/python/python-difference-between-lock-and-rlock-objects/ - Explains use of RLock
+        # Basically Lock can only be acquired once by a thread whereas RLock can acquire the lock multiple times as required here
         self._map_lock = threading.RLock()
         self._origin_lock = threading.RLock()
         self.__map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
-        self.__origin = np.array(map_init_shape) // 2  # measured in blocks. Assumes the drone starts at 0 meters from home in any direction
-        self.block_length = block_length_mm / 1000
+        self.__origin = np.array(map_init_shape) / 2  # The original location of the robot on the map, measured in blocks. Assumes the drone starts at 0 meters from home in any direction
+        self.block_length = block_length_mm / 1000  # convert block_length to meters
         self.robot_size_blocks = robot_size_blocks
 
     def _extend_to(self, coords: tuple[int, int, int]) -> np.ndarray:
         """
         Function to exchange the map with a larger copy. Requires _map_lock to already have been acquired
         :param coords: The coordinates that need to be within the new map
-        :return: The vector by which the map's origin has drifted
+        :return: The vector describing how the map has shifted
         """
         map_shape = (self.__map.shape - np.ones(3)).astype('i')
+        # allocate a larger map and copy values, map size is extended in negative direction if coordinates are less than zero and in the positive direction if the coordinates are greater than the map shape currently is
         self.__map = np.pad(self.__map, pad_width=(
             (np.abs(np.minimum(0, coords[0])), np.maximum(0, coords[0] - map_shape[0])),
             (np.abs(np.minimum(0, coords[1])), np.maximum(0, coords[1] - map_shape[1])),
             (np.abs(np.minimum(0, coords[2])), np.maximum(0, coords[2] - map_shape[2]))),
                             mode='constant', constant_values=self.prior)
         with self._origin_lock:
+            # calculate the new origin location (where the robot started from) and return a vector describing how the map has shifted
             prev_start = self.__origin.copy()
             self.__origin = self.__origin + np.abs(np.minimum(0, coords))
             return self.__origin - prev_start
 
     def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
         new_blocks_max_dist: int = math.ceil(radius / self.block_length)
+        # generate all map indexes in a cube where any side of the cube is at its closest radius distance away from the robot_map_index
         new_blocks: list[tuple[int, int, int]] = [(x, y, z)
                                                   for x in range(robot_map_index[0].astype("i") - new_blocks_max_dist,
                                                                  robot_map_index[0].astype(

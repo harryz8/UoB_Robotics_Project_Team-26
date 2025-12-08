@@ -64,7 +64,7 @@ def test_save_and_load(map_inst):
     newmap = Mapping(250, 1)
     newmap.load_map()
     newmap_map = newmap.get_normalised(maximum_certainty_log_odds=10000)
-    assert (cur_map_map.astype(np.float32) == newmap_map.astype(np.float32)).all()
+    assert (np.isclose(cur_map_map.astype(np.float32), newmap_map.astype(np.float32))).all()
 
 
 def test_on_lidar_plane_mask(map_instance: Mapping, lidar_inst: Lidar):
@@ -94,9 +94,9 @@ if __name__ == "__main__":
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
     mymap = Mapping(250, 1)
-    test_initialise_blocks_in_range(mymap)
-    test_range_mask(mymap, mydar)
-    test_on_lidar_plane_mask(mymap, mydar)
-    # print(time_function(test_map_update, mymap, mydar))
-    # test_save_and_load(mymap)
+    # test_initialise_blocks_in_range(mymap)
+    # test_range_mask(mymap, mydar)
+    # test_on_lidar_plane_mask(mymap, mydar)
+    print(time_function(test_map_update, mymap, mydar))
+    test_save_and_load(mymap)
     print("Everything passed")

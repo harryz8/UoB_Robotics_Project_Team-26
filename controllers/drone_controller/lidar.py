@@ -61,4 +61,8 @@ class Lidar:
 
     @property
     def current_readings(self) -> np.ndarray:
+        """
+        Getter function for self.__current_readings
+        :return: the current readings of each of the lidar 'rays' in terms of a position vector on the lidar plane
+        """
         return self.__current_readings

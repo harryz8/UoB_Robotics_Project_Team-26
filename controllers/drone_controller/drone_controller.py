@@ -184,19 +184,12 @@ weight=np.ones(N,dtype=float)/N
 prev_gps=None
 timestep_=timestep/1000.0 # convert ms to seconds
 
-
-# for debugging
-loops = 0
-prints = 10
-np.set_printoptions(edgeitems=30, linewidth=100000,
-                    formatter=dict(float=lambda x: "%.3g" % x))
-
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
     # read sensors
-    pf_position = np.array([0, 0, 0])
-    pf_orientation = np.array([0, -0.07, 0])  # the inial positions and orientations are zero
+    pf_position = np.array([0, 0, 0])  # the initial position is zero on every axis
+    pf_orientation = np.array([0, -0.07, 0])  # the initial orientation is zero on every axis except the drone always sits on the ground at an angle of -0.07 due to its feet, so the pitch starts at -0.07
     roll, pitch, yaw = imu.getRollPitchYaw()
     gps_values = gps.getValues()
     roll_velocity, pitch_velocity, yaw_velocity = gyro.getValues()
@@ -233,6 +226,22 @@ while robot.step(timestep) != -1:
         pf_position, pf_orientation = final_estimation(particles_position, weight)
         # print(f"PF Position:{np.round(pf_position,3)} PF Orientation:{np.round(pf_orientation,3)}")
     # ---------------------------------------------------------------
+
+    # ----- mappping: occupancy grid map -----
+    # Update the map given readings from both LIDARs
+    # Using threads to speed up the process by running many operations in parallel
+    step_update_threads = []
+    step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                               args=(pf_position, np.flip(pf_orientation),
+                                                     horizontal_lidar)))
+    step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                               args=(pf_position, np.flip(pf_orientation),
+                                                     vertical_lidar)))
+    for update_thread in step_update_threads:
+        update_thread.start()
+    # wait for threads to finish - we don't want the drone moving whilst readings are being taken
+    for update_thread in step_update_threads:
+        update_thread.join()
 
     # ----- Computer Assisted User Control -----
     altitude = pf_position[2]
@@ -371,7 +380,6 @@ while robot.step(timestep) != -1:
         #mapping_inst.get_visual_map(2, 3)
     loops += 1
 
-    #localisation -> mapping -> database of map
     if ord("Q") in pressed_keys:
         # Exit the loop and stop the controller
         break
