@@ -90,7 +90,7 @@ class Mapping:
         self._map_lock = threading.RLock()
         self._origin_lock = threading.RLock()
         self.__map = np.zeros(map_init_shape, dtype='float32') + self.prior # Initialises the map
-        self.__origin = np.array(map_init_shape) / 2  # The original location of the robot on the map, measured in blocks. Assumes the drone starts at 0 meters from home in any direction
+        self.__origin = np.array(map_init_shape) // 2  # the map index of the original location of the drone. Assumes the drone starts at 0 meters from home in any direction
         self.block_length = block_length_mm / 1000  # convert block_length to meters
         self.robot_size_blocks = robot_size_blocks
 
@@ -114,6 +114,12 @@ class Mapping:
             return self.__origin - prev_start
 
     def initialise_blocks_in_range(self, robot_map_index: np.ndarray, radius: float) -> np.ndarray:
+        """
+        Extends the map to include all blocks potentially in scanning range
+        :param robot_map_index: the indices for the robot's location in the map
+        :param radius: the closest distance that the edge of the cube defining the area of values to be initialised is from the robot
+        :return: the new index of the robot in the map given the shift of the map after it has been extended
+        """
         new_blocks_max_dist: int = math.ceil(radius / self.block_length)
         # generate all map indexes in a cube where any side of the cube is at its closest radius distance away from the robot_map_index
         new_blocks: list[tuple[int, int, int]] = [(x, y, z)
@@ -126,7 +132,8 @@ class Mapping:
                                                   for z in range(robot_map_index[2].astype("i") - new_blocks_max_dist,
                                                                  robot_map_index[2].astype(
                                                                      "i") + new_blocks_max_dist + 1)]
-        change_vec = np.zeros(3)
+        change_vec = np.zeros(3) # registers shift after extending the map so that following values can be adjusted
+        # extend the map until it contains the furthest indices in new_blocks in both the positive and negative directions
         for new_block in [min(new_blocks), max(new_blocks)]:
             with self._map_lock:
                 if not ((new_block[0] + change_vec[0] < self.__map.shape[0]) and (
@@ -138,6 +145,7 @@ class Mapping:
                     change_vec = change_vec + self._extend_to((int(new_block[0] + change_vec[0]),
                                                                int(new_block[1] + change_vec[1]),
                                                                int(new_block[2] + change_vec[2])))
+        # returns the new index of the robot in the map given the shift of the map after it has been extended
         robot_map_index = (robot_map_index + change_vec).astype("i")
         return robot_map_index
 
@@ -210,13 +218,9 @@ class Mapping:
 
     def prepare_map_and_update_location(self, robot_loc: np.ndarray, lidar_inst) -> np.ndarray:
         # extend map
-        robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length)
-        robot_loc_remainder = robot_loc % self.block_length
-        with self._origin_lock:
-            robot_map_index = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.__origin,
-                                                          radius=lidar_inst.device.getMaxRange())
-        robot_loc_blocks = robot_map_index  # - self.origin
-        robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder - self.block_length/2
+        robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length) + self.origin
+        self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks, radius=lidar_inst.device.getMaxRange())
+        robot_loc = robot_loc + blocks_to_meters(self.origin, self.block_length)  # because robot_loc was just the displacement from the robot's original starting point, and if you add self.origin which is the displacement from the map (0, 0, 0) point to the robot's start point (after converting to meters), you get the robot's displacement from the map's (0 ,0 ,0) point
         return robot_loc
 
     def update(self, robot_loc: np.ndarray, robot_attitude: np.ndarray, lidar_inst: Lidar):
@@ -224,14 +228,13 @@ class Mapping:
         Update map after new lidar reading.
 
         :param lidar_inst: the Lidar object to take measurements from
-        :param robot_loc: an np.ndarray with all 3 measurements for the displacement along the different axis in meters.
+        :param robot_loc: an np.ndarray with all 3 measurements for the displacement of the robot from its original position along the different axis in meters.
                           In the order x, y, z
         :param robot_attitude: The roll, pitch and yaw of the robot (in that order). Measured in radians
-        
         :return: None
         """
         # start thread to process and get Lidar readings
-        process_lidar_readings = threading.Thread(target=lidar_inst.update_current_readings, args=(robot_attitude,))  # https://www.w3schools.com/python/gloss_python_tuple_one_item.asp
+        process_lidar_readings = threading.Thread(target=lidar_inst.update_current_readings, args=(robot_attitude,))  # Comma required to make it a tuple - got help from https://www.w3schools.com/python/gloss_python_tuple_one_item.asp
         process_lidar_readings.start()
 
         # Calculate the rotation matrices for pitch roll and yaw
@@ -256,7 +259,7 @@ class Mapping:
         # get all map indexes in a square around the robot with minimum distance from the robot of the lidar max range
         with self._map_lock:
             square_range_plus = meters_to_blocks(
-                    robot_loc+lidar_inst.device.getMaxRange(), self.block_length)
+                    robot_loc + lidar_inst.device.getMaxRange(), self.block_length)
             square_range_minus = meters_to_blocks(
                 robot_loc - lidar_inst.device.getMaxRange(), self.block_length)
             ranged_map_indexes =  np.array(np.meshgrid(
@@ -278,8 +281,6 @@ class Mapping:
         current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
         learning_blocks_indices = np.delete(learning_blocks_indices, current_index, axis=0)
 
-        # learning_blocks_indices = self.get_all_map_indexes()  # TODO: REMOVE
-
         # Get the range readings from the lidar
         process_lidar_readings.join()
         readings_plane_xy = lidar_inst.current_readings
@@ -288,7 +289,6 @@ class Mapping:
         reading_disp = reading_disp.astype(np.float32)
         reading_dist_from_robot = np.linalg.norm(readings_vec_from_robot, axis=1)
 
-        # i = 0
         for indices in learning_blocks_indices:
             update_amount = 0
 

@@ -43,19 +43,21 @@ def test_map_update(map_inst, lidar_inst):
     # map_inst.get_visual_map(2, 4)
 
 
-def test_initialise_blocks_in_range(robot_map):
-    loc = robot_map.initialise_blocks_in_range(np.array([0, 0, 0]), 1)
-    assertion = loc == np.array([4, 4, 4])
-    assert assertion.all(), "test_initialise_blocks_in_range() failed."
+def test_prepare_map_and_update_location(robot_map, robot_loc_l, lidar_inst):
+    loc = robot_map.prepare_map_and_update_location(robot_loc_l, lidar_inst)
+    assertion = robot_map.origin == np.array([4, 4, 4])
+    assert assertion.all(), "test_prepare_map_and_update_location() failed."
+    return loc
 
 
-def test_range_mask(map_inst, lidar_inst):
-    robot_loc = map_inst.prepare_map_and_update_location(np.array([0, 0, 0]), lidar_inst)
-    mask = map_inst.get_lidar_range_mask(robot_loc, lidar_inst, map_inst.get_all_map_indexes())
-    vals = blocks_to_meters(map_inst.get_all_map_indexes()[mask], map_inst.block_length) - robot_loc
+def test_range_mask(map_inst, lidar_inst, robot_loc_l):
+    robot_loc_l = map_inst.prepare_map_and_update_location(robot_loc_l, lidar_inst)
+    mask = map_inst.get_lidar_range_mask(robot_loc_l, lidar_inst, map_inst.get_all_map_indexes())
+    vals = blocks_to_meters(map_inst.get_all_map_indexes()[mask], map_inst.block_length) - robot_loc_l
     displacements = np.sqrt(np.sum(np.square(vals), axis=1))
-    # print(visually_test_mask(map_inst, mask)[:, :, 4])
+    print(visually_test_mask(map_inst, mask)[:, :, meters_to_blocks(robot_loc_l, map_inst.block_length)[2].astype(int)])
     assert (displacements <= 1).all(), "test_range_mask() failed."
+    return mask
 
 
 def test_save_and_load(map_inst):
@@ -67,8 +69,8 @@ def test_save_and_load(map_inst):
     assert (np.isclose(cur_map_map.astype(np.float32), newmap_map.astype(np.float32))).all()
 
 
-def test_on_lidar_plane_mask(map_instance: Mapping, lidar_inst: Lidar):
-    robot_loc = map_instance.prepare_map_and_update_location(np.array([0, 0, 0]), lidar_inst)
+def test_on_lidar_plane_mask(map_instance: Mapping, lidar_inst: Lidar, robot_loc_l, map_indexes):
+    robot_loc_l = map_instance.prepare_map_and_update_location(robot_loc_l, lidar_inst)
     robot_attitude = np.array([0, 0, 0])
     roll_matrix = np.array([[1, 0, 0],
                             [0, np.cos(robot_attitude[0]), -np.sin(robot_attitude[0])],
@@ -80,23 +82,30 @@ def test_on_lidar_plane_mask(map_instance: Mapping, lidar_inst: Lidar):
                            [np.sin(robot_attitude[2]), np.cos(robot_attitude[2]), 0],
                            [0, 0, 1]])
     lidar_plane_axes = get_lidar_plane_axes_in_terms_of_map_axes(roll_matrix, pitch_matrix, yaw_matrix)
-    indexes = map_instance.restrict_map_indexes_to_within_fov(robot_loc, lidar_plane_axes, map_instance.get_all_map_indexes(), lidar_inst)
+    indexes = map_instance.restrict_map_indexes_to_within_fov(robot_loc_l, lidar_plane_axes, map_indexes, lidar_inst)
     temp_map = np.zeros_like(map_instance.get(10000))
     for index in indexes:
         temp_map[index[0], index[1], index[2]] = 1
-    # print(temp_map[:, :, 4])
+    print(temp_map[:, :, meters_to_blocks(robot_loc_l, map_instance.block_length)[2].astype(int)])
     assert temp_map.sum() == 45
 
 
 if __name__ == "__main__":
+    # np.set_printoptions(edgeitems=30, linewidth=100000,
+    #                     formatter=dict(float=lambda x: "%.3g" % x))
     range_image = 0.5 / np.cos(np.linspace(-np.pi / 2, np.pi / 2, 100))
     range_image_filter = range_image > 1
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
     mymap = Mapping(250, 1)
-    # test_initialise_blocks_in_range(mymap)
-    # test_range_mask(mymap, mydar)
-    # test_on_lidar_plane_mask(mymap, mydar)
-    print(time_function(test_map_update, mymap, mydar))
-    test_save_and_load(mymap)
+    robot_loc = test_prepare_map_and_update_location(mymap, np.array([0, 0, 0]), mydar)
+    print(meters_to_blocks(robot_loc, mymap.block_length))
+    print(mymap.get_normalised(10000).shape)
+    range_mask = test_range_mask(mymap, mydar, np.array([0, 0, 0]))
+    print(meters_to_blocks(robot_loc, mymap.block_length))
+    print(mymap.get_normalised(10000).shape)
+    test_on_lidar_plane_mask(mymap, mydar, np.array([0, 0, 0]), mymap.get_all_map_indexes()[range_mask])
+    print(mymap.get_normalised(10000).shape)
+    # print(time_function(test_map_update, mymap, mydar))
+    # test_save_and_load(mymap)
     print("Everything passed")

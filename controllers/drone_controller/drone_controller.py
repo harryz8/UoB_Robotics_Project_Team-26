@@ -290,6 +290,7 @@ while robot.step(timestep) != -1:
     front_right_motor.setVelocity(-fr_input)
     rear_left_motor.setVelocity(-rl_input)
     rear_right_motor.setVelocity(rr_input)
+    # print(mapping_inst.get_normalised(1000).shape)
 
 # Enter here exit cleanup code.
 
