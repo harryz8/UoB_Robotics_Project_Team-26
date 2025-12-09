@@ -49,7 +49,7 @@ def is_in_block(block_index: np.ndarray, location_meters: np.ndarray, block_leng
     """
     block_index_meters = blocks_to_meters(block_index, block_length)
     return np.all((location_meters > (block_index_meters - block_length/2)) &
-                  (location_meters < (block_index_meters + block_length/2)), axis=1)
+                  (location_meters <= (block_index_meters + block_length/2)), axis=1)
 
 
 def get_lidar_plane_axes_in_terms_of_map_axes(roll_matrix: np.ndarray,
@@ -317,25 +317,30 @@ class Mapping:
 
             # checks if the block is free because the reading is beyond it
             unit_vs = readings_vec_from_robot.T / reading_dist_from_robot.T  # vectors scaled to have magnitude 1, whilst keeping their direction
-            block_step = unit_vs.T * (self.block_length/np.max(unit_vs)) #  vectors of the size of a block in direction unit_vs
+            block_step = unit_vs.T * (self.block_length/np.max(unit_vs)) #  vectors of the size of a block in direction 'unit_vs'
             cur_disp = robot_loc + block_step  # step one block forward from the robot's location
-            max_index = np.argmax(reading_dist_from_robot)  # the distance to the furthest reading from the robot
             max_loops = np.max(reading_dist_from_robot / np.linalg.norm(block_step, axis=1)) # the largest number of loops required to step block by block from the robot to a reading
-            for _ in range(max_loops.astype("i")):  # -1
+            # For max_loops loops, check if cur_disp is in indices and if it is, then add to update amount to indicate a free block
+            # then step forwards from the robot_loc by block_step
+            for _ in range(max_loops.astype("i")):
                 in_block = is_in_block(indices, cur_disp, self.block_length)
                 collisions = np.zeros_like(in_block) + learning_rate_when_empty
                 over_mask = np.linalg.norm(cur_disp - robot_loc, axis=1)//np.linalg.norm(block_step, axis=1) >= reading_dist_from_robot//np.linalg.norm(block_step, axis=1)
                 collisions[over_mask] = 0
-                update_amount += np.sum(collisions[in_block])
+                update_amount += np.sum(collisions[in_block]) # for each Li-DAR ray which passes through this block, add learning_rate_when_empty to the update_amount to indicate a free block
                 cur_disp += block_step
 
-            # Update map index
+            # Update map index specified by 'indices' by adding 'update_amount' to its current value
             with self._map_lock:
                 self.__map[indices[0], indices[1], indices[2]] = self.__map[indices[0], indices[1], indices[2]] + update_amount
 
     def get(self, maximum_certainty_log_odds: float) -> np.ndarray:
-        # Returns a copy of the map where the certainty is limited to [-self.max_certainty, self.max_certainty] so that no one area becomes overly important making all other areas of the map relatively negligible
-        # This could have happened, for example, when the drone is stopped at one location for a long time.
+        """
+        Returns a copy of the map where the certainty is limited to [-self.max_certainty, self.max_certainty] so that no one area becomes overly important making all other areas of the map relatively negligible
+        This could have happened, for example, when the drone is stopped at one location for a long time.
+        :param maximum_certainty_log_odds: how extreme either side of 0 values on the map should be limited to
+        :return: an np.ndarray representing the map where the certainty is limited to [-self.max_certainty, self.max_certainty]
+        """
         with self._map_lock:
             map_copy = self.__map.copy()
             max_filter = self.__map > maximum_certainty_log_odds
@@ -354,9 +359,9 @@ class Mapping:
         map_copy = limit_map.copy()
         return map_copy / maximum_certainty_log_odds
 
-    def get_visual_map(self, axis, index):
+    def get_visual_map(self, axis: int, index: int):
         """
-        Creates an image from any 2D slice of the map
+        Creates a plot from any 2D slice of the map using the module matplotlib.pyplot. This allows the map to be seen visually like an image
         :param axis: the axis to index
         :param index: the index for that axis
         :return: none
@@ -368,7 +373,7 @@ class Mapping:
         plt.imshow(np.negative(self.get_normalised(maximum_certainty_log_odds=10000))[tuple(slicer)], cmap='gray')
         plt.show()
 
-    def save_map(self, filename = "map.json"):
+    def save_map(self, filename: str = "map.json"):
         """
         Saves map and origin to filename in json format
         :param filename: the file in which to save the map
@@ -383,7 +388,7 @@ class Mapping:
         with open(filename, "w") as map_file:
             map_file.write(json_map_and_origin)
 
-    def load_map(self, filename = "map.json"):
+    def load_map(self, filename: str = "map.json"):
         """
         Loads a json of a map and origin from a text file, and replace the current map and origin with those from the file
         :param filename: the file from which to load the map
