@@ -1,3 +1,4 @@
+"""This file is not part of the project, it was just used for testing mapping functions without running webots."""
 from mapping import *
 from lidar import Lidar
 import numpy as np
