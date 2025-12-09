@@ -317,10 +317,10 @@ class Mapping:
 
             # checks if the block is free because the reading is beyond it
             unit_vs = readings_vec_from_robot.T / reading_dist_from_robot.T  # vectors scaled to have magnitude 1, whilst keeping their direction
-            block_step = unit_vs.T * (self.block_length/np.max(unit_vs))
-            cur_disp = robot_loc + block_step
-            max_index = np.argmax(reading_dist_from_robot)
-            max_loops = reading_dist_from_robot[max_index] / np.linalg.norm(block_step[max_index])
+            block_step = unit_vs.T * (self.block_length/np.max(unit_vs)) #  vectors of the size of a block in direction unit_vs
+            cur_disp = robot_loc + block_step  # step one block forward from the robot's location
+            max_index = np.argmax(reading_dist_from_robot)  # the distance to the furthest reading from the robot
+            max_loops = np.max(reading_dist_from_robot / np.linalg.norm(block_step, axis=1)) # the largest number of loops required to step block by block from the robot to a reading
             for _ in range(max_loops.astype("i")):  # -1
                 in_block = is_in_block(indices, cur_disp, self.block_length)
                 collisions = np.zeros_like(in_block) + learning_rate_when_empty

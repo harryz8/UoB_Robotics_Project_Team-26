@@ -40,7 +40,7 @@ def test_map_update(map_inst, lidar_inst):
     map_inst.update(robot_loc=np.array([0, 0, 0]), robot_attitude=np.array([0, 0, 0]), lidar_inst=lidar_inst)
     print(np.sign(map_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]))
     print(map_inst.get_normalised(maximum_certainty_log_odds=10000).shape)
-    # map_inst.get_visual_map(2, 4)
+    map_inst.get_visual_map(2, 4)
 
 
 def test_initialise_blocks_in_range(robot_map):
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     range_image_filter = range_image > 1
     range_image[range_image_filter] = np.inf
     mydar = Lidar(TestDevice(range_image), (0, 1), 0.9, 0.9)
-    mymap = Mapping(250, 1)
+    mymap = Mapping(250)
     # test_initialise_blocks_in_range(mymap)
     # test_range_mask(mymap, mydar)
     # test_on_lidar_plane_mask(mymap, mydar)
