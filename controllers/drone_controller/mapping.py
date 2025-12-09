@@ -227,10 +227,11 @@ class Mapping:
         """
         # extend map
         robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length)
-        robot_loc_remainder = robot_loc % self.block_length
+        robot_loc_remainder = robot_loc % self.block_length  # what we would lose from robot_loc after its converted to and from blocks
         with self._origin_lock:
             robot_loc_blocks = self.initialise_blocks_in_range(robot_map_index=robot_loc_blocks + self.__origin,
                                                                radius=lidar_inst.device.getMaxRange())
+        # Calculate new robot lock after map shifted
         robot_loc = blocks_to_meters(robot_loc_blocks, self.block_length) + robot_loc_remainder - self.block_length/2
         return robot_loc
 
@@ -245,11 +246,11 @@ class Mapping:
         
         :return: None
         """
-        # start thread to process and get Lidar readings
+        # start thread to process and get Lidar readings whilst this thread continues to find which map blocks may get updated
         process_lidar_readings = threading.Thread(target=lidar_inst.update_current_readings, args=(robot_attitude,))  # https://www.w3schools.com/python/gloss_python_tuple_one_item.asp
         process_lidar_readings.start()
 
-        # Calculate the rotation matrices for pitch roll and yaw
+        # Calculate the rotation matrices for pitch, roll and yaw
         roll_matrix = np.array([[1, 0, 0],
                                 [0, np.cos(robot_attitude[0]), -np.sin(robot_attitude[0])],
                                 [0, np.sin(robot_attitude[0]), np.cos(robot_attitude[0])]])
@@ -260,61 +261,63 @@ class Mapping:
                                [np.sin(robot_attitude[2]), np.cos(robot_attitude[2]), 0],
                                [0, 0, 1]])
 
-        # calculate and set the learning rates for how much we trust the readings and extend map ready for updating if necessary
+        # calculate and set the learning rates for how much we trust the readings
         learning_rate_when_object: float = np.log(lidar_inst.object_detection_accuracy/(1-lidar_inst.empty_detection_accuracy))
         learning_rate_when_empty: float = np.log((1-lidar_inst.object_detection_accuracy)/lidar_inst.empty_detection_accuracy)
+
+        # Adjust robot_loc to be in the centre of the block
         robot_loc = robot_loc + self.block_length/2
+        # Extend the map to include anywhere the lidar may scan
         robot_loc = self.prepare_map_and_update_location(robot_loc, lidar_inst)
 
         # ---- update map ----
 
-        # get all map indexes in a square around the robot with minimum distance from the robot of the lidar max range
+        # get all map indexes in a cube around the robot with minimum distance from the robot of the lidar max range
         with self._map_lock:
-            square_range_plus = meters_to_blocks(
+            cube_range_plus = meters_to_blocks(
                     robot_loc+lidar_inst.device.getMaxRange(), self.block_length)
-            square_range_minus = meters_to_blocks(
+            cube_range_minus = meters_to_blocks(
                 robot_loc - lidar_inst.device.getMaxRange(), self.block_length)
             ranged_map_indexes =  np.array(np.meshgrid(
-                np.arange(np.maximum(0, square_range_minus[0]),
-                          np.minimum(self.__map.shape[0], square_range_plus[0].astype("i"))),
-                np.arange(np.maximum(0, square_range_minus[1]),
-                          np.minimum(self.__map.shape[1], square_range_plus[1].astype("i"))),
-                np.arange(np.maximum(0, square_range_minus[2]),
-                          np.minimum(self.__map.shape[2], square_range_plus[2].astype("i")))
+                np.arange(np.maximum(0, cube_range_minus[0]),
+                          np.minimum(self.__map.shape[0], cube_range_plus[0].astype("i"))),
+                np.arange(np.maximum(0, cube_range_minus[1]),
+                          np.minimum(self.__map.shape[1], cube_range_plus[1].astype("i"))),
+                np.arange(np.maximum(0, cube_range_minus[2]),
+                          np.minimum(self.__map.shape[2], cube_range_plus[2].astype("i")))
             )).T.reshape(-1, 3).astype("i")
 
         # filter map indexes to get those within lidar range and fov
         range_mask = self.get_lidar_range_mask(robot_loc, lidar_inst, ranged_map_indexes)
         all_map_indexes = ranged_map_indexes[range_mask]
         lidar_plane_axes = get_lidar_plane_axes_in_terms_of_map_axes(roll_matrix, pitch_matrix, yaw_matrix)
-        learning_blocks_indices = self.restrict_map_indexes_to_within_fov(robot_loc, lidar_plane_axes, all_map_indexes, lidar_inst)
+        learning_blocks_indices = self.restrict_map_indexes_to_within_fov(robot_loc, lidar_plane_axes, all_map_indexes, lidar_inst)  # all blocks that could have their values updated by the Li-DAR
 
         # disallow current block
         current_index = np.where(np.all(learning_blocks_indices == meters_to_blocks(robot_loc, self.block_length), axis=1))[0]
         learning_blocks_indices = np.delete(learning_blocks_indices, current_index, axis=0)
 
-        # learning_blocks_indices = self.get_all_map_indexes()  # TODO: REMOVE
-
         # Get the range readings from the lidar
         process_lidar_readings.join()
-        readings_plane_xy = lidar_inst.current_readings
+        readings_plane_xy = lidar_inst.current_readings  # lidar readings on lidar plane
+        # convert readings to displacement along map axes
         readings_vec_from_robot = (np.tile(lidar_plane_axes[lidar_inst.axis_from_robot[0]], (readings_plane_xy.shape[0], 1)).T*readings_plane_xy[:, 0] + np.tile(lidar_plane_axes[lidar_inst.axis_from_robot[1]], (readings_plane_xy.shape[0], 1)).T*readings_plane_xy[:, 1]).T
-        reading_disp = readings_vec_from_robot + robot_loc
+        reading_disp = readings_vec_from_robot + robot_loc  # displacement from robot
         reading_disp = reading_disp.astype(np.float32)
-        reading_dist_from_robot = np.linalg.norm(readings_vec_from_robot, axis=1)
+        reading_dist_from_robot = np.linalg.norm(readings_vec_from_robot, axis=1)  # scalar distances from robot
 
-        # i = 0
+        # For all blocks that might be updated, check if information about them has been collected and then update their values
         for indices in learning_blocks_indices:
             update_amount = 0
 
-            # is the reading in the block specified by indices
-            in_block = is_in_block(indices, reading_disp, self.block_length)
+            # add learning_rate_when_object odds for each time a lidar ray terminates in this block
+            in_block = is_in_block(indices, reading_disp, self.block_length)  # is the reading in the block specified by the indices?
             collisions = np.zeros_like(in_block) + learning_rate_when_object
             update_amount += np.sum(collisions[in_block])
 
-            # is the block free
-            norm = readings_vec_from_robot.T / reading_dist_from_robot.T
-            block_step = norm.T * self.block_length
+            # checks if the block is free because the reading is beyond it
+            unit_vs = readings_vec_from_robot.T / reading_dist_from_robot.T  # vectors scaled to have magnitude 1, whilst keeping their direction
+            block_step = unit_vs.T * (self.block_length/np.max(unit_vs))
             cur_disp = robot_loc + block_step
             max_index = np.argmax(reading_dist_from_robot)
             max_loops = reading_dist_from_robot[max_index] / np.linalg.norm(block_step[max_index])
