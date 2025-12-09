@@ -282,6 +282,7 @@ while robot.step(timestep) != -1:
         # ----- mappping: occupancy grid map -----
         # Update the map given readings from both LIDARs
         # Using threads to speed up the process by running many operations in parallel
+        # Map only when not path planning so that the map isn't changed when it is being used.
         step_update_threads = []
         step_update_threads.append(threading.Thread(target=mapping_inst.update,
                                                     args=(pf_position, np.flip(pf_orientation),
