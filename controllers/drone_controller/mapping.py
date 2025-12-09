@@ -84,7 +84,7 @@ class Mapping:
         :param map_init_shape: the size of the initial map. A balance must be struck, because too large of a map causes too much memory to be used whereas too small of a map causes lots of map copy operations to increase its size later on
         """
         # Sets up locks to protect shared variables from concurrency issues of threading this object's methods
-        # https://www.geeksforgeeks.org/python/python-difference-between-lock-and-rlock-objects/ - Explains use of RLock
+        # https://www.geeksforgeeks.org/python/python-difference-between-lock-and-rlock-objects/ - Reminds me of the reason for use of RLock
         # Basically Lock can only be acquired once by a thread whereas RLock can acquire the lock multiple times as required here
         self._map_lock = threading.RLock()
         self._origin_lock = threading.RLock()
