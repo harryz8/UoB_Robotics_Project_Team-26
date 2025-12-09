@@ -169,24 +169,7 @@ np.set_printoptions(edgeitems=30, linewidth=100000,
 # Main loop:
 # - perform simulation steps until Webots is stopping the controller
 while robot.step(timestep) != -1:
-
-    # Update the map given readings from both LIDARs
-    # Using threads to speed up the process by running many operations in parallel
-    step_update_threads = []
-    step_update_threads.append(threading.Thread(target=mapping_inst.update,
-                                               args=(np.array(gps.getValues()), np.array(gyro.getValues()),
-                                                     horizontal_lidar)))
-    step_update_threads.append(threading.Thread(target=mapping_inst.update,
-                                               args=(np.array(gps.getValues()), np.array(gyro.getValues()),
-                                                     vertical_lidar)))
-    for update_thread in step_update_threads:
-        update_thread.start()
-    # wait for threads to finish
-    for update_thread in step_update_threads:
-        update_thread.join()
-
     # read sensors
-
     roll, pitch, yaw = imu.getRollPitchYaw()
     altitude = gps.getValues()[2]
     
@@ -230,6 +213,22 @@ while robot.step(timestep) != -1:
                 target_altitude += clamp(diff_z, -clampVal, clampVal)
     
     else:
+        # Update the map given readings from both LIDARs
+        # Using threads to speed up the process by running many operations in parallel
+        # Only update map if not path planning so that the map does not change whilst it is being used
+        step_update_threads = []
+        step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                                    args=(np.array(gps.getValues()), np.array(gyro.getValues()),
+                                                          horizontal_lidar)))
+        step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                                    args=(np.array(gps.getValues()), np.array(gyro.getValues()),
+                                                          vertical_lidar)))
+        for update_thread in step_update_threads:
+            update_thread.start()
+        # wait for threads to finish
+        for update_thread in step_update_threads:
+            update_thread.join()
+
         # Keyboard offsets
         if ord("W") in pressed_keys:
             x_offset += key_increment   # forward
