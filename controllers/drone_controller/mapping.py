@@ -413,9 +413,18 @@ class Mapping:
 
     @property
     def origin(self) -> np.ndarray:
+        """
+        Returns the index of the block on the map where the robot started from e.g. when this mapping object was instantiated.
+        Note: This tends to change every time mapping.update() is run because the map will likely get extended.
+        :return: an np.ndarray that is the index of the block on the map where the robot started from
+        """
         with self._origin_lock:
             return self.__origin
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Returns the representation of the map that is returned when it is converted to a string
+        :return: a string representation of the map
+        """
         with self._map_lock:
             return str(self.__map)

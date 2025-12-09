@@ -1,25 +1,4 @@
 import numpy as np
-import math
-
-
-def angle_in_given_plane_to_two_components(
-        roll_angle_radians: float,
-        roll_triangle_hyp: np.ndarray,
-        component_triangle_adj: np.ndarray
-) -> np.ndarray:
-    first_roll_triangle_adj = roll_triangle_hyp * np.cos(roll_angle_radians)
-    ang = np.round(np.cos(np.pi / 2 - roll_angle_radians), 15)
-    if ang == 0.0:
-        second_roll_triangle_adj = 0
-    else:
-        second_roll_triangle_adj = roll_triangle_hyp * np.round(np.cos(np.pi / 2 - roll_angle_radians), 15)
-    if isinstance(second_roll_triangle_adj, np.ndarray):
-        nan_filter = np.isnan(second_roll_triangle_adj)
-        second_roll_triangle_adj[nan_filter] = 0
-    else:
-        second_roll_triangle_adj = 0 if math.isnan(second_roll_triangle_adj) else second_roll_triangle_adj
-    return np.array([np.arctan2(first_roll_triangle_adj, component_triangle_adj),
-                     np.arctan2(second_roll_triangle_adj, component_triangle_adj)])
 
 
 class Lidar:
