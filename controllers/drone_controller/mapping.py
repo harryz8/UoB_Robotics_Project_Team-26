@@ -262,8 +262,9 @@ class Mapping:
                                [0, 0, 1]])
 
         # calculate and set the learning rates for how much we trust the readings
-        learning_rate_when_object: float = np.log(lidar_inst.object_detection_accuracy/(1-lidar_inst.empty_detection_accuracy))
-        learning_rate_when_empty: float = np.log((1-lidar_inst.object_detection_accuracy)/lidar_inst.empty_detection_accuracy)
+        # these are returned by the inverse sensor model when it detects occupancy and when it doesn't detect occupancy respectively
+        learning_rate_when_object: float = np.log(lidar_inst.object_detection_accuracy/(1-lidar_inst.object_detection_accuracy))
+        learning_rate_when_empty: float = np.log((1-lidar_inst.empty_detection_accuracy)/lidar_inst.empty_detection_accuracy)
 
         # Adjust robot_loc to be in the centre of the block
         robot_loc = robot_loc + self.block_length/2
