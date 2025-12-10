@@ -335,6 +335,11 @@ class Mapping:
             with self._map_lock:
                 self.__map[indices[0], indices[1], indices[2]] = self.__map[indices[0], indices[1], indices[2]] + update_amount
 
+        # robot location block is at least somewhat free as the robot is in it
+        with self._map_lock:
+            robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length).astype(int)
+            self.__map[robot_loc_blocks[0], robot_loc_blocks[1], robot_loc_blocks[2]] = self.__map[robot_loc_blocks[0], robot_loc_blocks[1], robot_loc_blocks[2]] - 100  # large negative reading as we are pretty sure it is free
+
     def get(self, maximum_certainty_log_odds: float) -> np.ndarray:
         """
         Returns a copy of the map where the certainty is limited to [-self.max_certainty, self.max_certainty] so that no one area becomes overly important making all other areas of the map relatively negligible
