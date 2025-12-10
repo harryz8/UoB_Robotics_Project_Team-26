@@ -36,7 +36,7 @@ class Lidar:
         """
         Assigns all readings an angle (radians) from the map's axis which corresponds to the Li-DAR's scanning plane's first axis (self.axis_from_robot[0])
         Assumption 1: all Li-DAR readings are evenly spaced across the FOV range, i.e. there is all lidar readings have the same angle between them
-        Assumption 2: all Li-DAR readings start from the leftmost when looking out from the drone along the Li-DAR's scanning plane
+        Assumption 2: all Li-DAR readings start from the rightmost when looking out from the drone along the Li-DAR's scanning plane
         :param robot_attitude: The roll, pitch and yaw of the drone (in that order). Measured in radians
         :return: readings as pairs of the distance of the reading from the drone and the angle estimated from the map's axis which corresponds to the Li-DAR's scanning plane's first axis (self.axis_from_robot[0])
         """
@@ -47,8 +47,8 @@ class Lidar:
                 axis_not_in_lidar_plane = axis
                 break
         # returns readings as pairs of the distance of the reading from the drone and the angle estimated from the map's axis which corresponds to the Li-DAR's scanning plane's first axis (self.axis_from_robot[0])
-        return np.column_stack((self.get_readings(), np.linspace(robot_attitude[axis_not_in_lidar_plane].item() - (self.device.getFov() / 2),
-                                                                 robot_attitude[axis_not_in_lidar_plane].item() + (self.device.getFov() / 2),
+        return np.column_stack((self.get_readings(), np.linspace(robot_attitude[axis_not_in_lidar_plane].item() + (self.device.getFov() / 2),
+                                                                 robot_attitude[axis_not_in_lidar_plane].item() - (self.device.getFov() / 2),
                                                                  self.device.getHorizontalResolution())))
 
     def update_current_readings(self, robot_attitude: np.ndarray):
