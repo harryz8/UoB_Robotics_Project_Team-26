@@ -340,6 +340,8 @@ class Mapping:
             robot_loc_blocks = meters_to_blocks(robot_loc, self.block_length).astype(int)
             self.__map[robot_loc_blocks[0], robot_loc_blocks[1], robot_loc_blocks[2]] = self.__map[robot_loc_blocks[0], robot_loc_blocks[1], robot_loc_blocks[2]] - 100  # large negative reading as we are pretty sure it is free
 
+        self.get_visual_map(2, 3)
+
     def get(self, maximum_certainty_log_odds: float) -> np.ndarray:
         """
         Returns a copy of the map where the certainty is limited to [-self.max_certainty, self.max_certainty] so that no one area becomes overly important making all other areas of the map relatively negligible
