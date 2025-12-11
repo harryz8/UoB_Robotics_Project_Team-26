@@ -125,20 +125,24 @@ y_trim = 0.064
 camera = robot.getDevice("camera")
 camera.enable(timestep)
 
+# both lidars are the same so setting accuracies for both
+object_detected_given_object_prob=0.95
+empty_detected_given_empty_prob=0.75
+
 # getting lidar devices and initialising lidar objects
 horizontal_lidar_device = robot.getDevice("horizontal_lidar")
 horizontal_lidar_device.enable(timestep)
 horizontal_lidar: Lidar = Lidar(horizontal_lidar_device,
                           axis_from_robot=(0, 1),
-                          object_detected_given_object_prob=0.9,  # to be determined
-                          empty_detected_given_empty_prob=0.9  # to be determined
+                          object_detected_given_object_prob=object_detected_given_object_prob,
+                          empty_detected_given_empty_prob=empty_detected_given_empty_prob
                           )
 vertical_lidar_device = robot.getDevice("vertical_lidar")
 vertical_lidar_device.enable(timestep)
 vertical_lidar: Lidar = Lidar(vertical_lidar_device,
                           axis_from_robot=(0, 2),
-                          object_detected_given_object_prob=0.9,  # to be determined
-                          empty_detected_given_empty_prob=0.9  # to be determined
+                          object_detected_given_object_prob=object_detected_given_object_prob,
+                          empty_detected_given_empty_prob=empty_detected_given_empty_prob
                           )
 
 # create the map in a Mapping object
@@ -355,6 +359,9 @@ while robot.step(timestep) != -1:
     if ord("Q") in pressed_keys:
         # Exit the loop and stop the controller
         break
+    if ord("M") in pressed_keys:
+        # Show the map as a pyplot (for debugging)
+        mapping_inst.get_visual_map(2, 4)  # get 2D horizontal map, the 4th layer
     
      # Apply velocities
     front_left_motor.setVelocity(fl_input)
