@@ -303,7 +303,7 @@ class Mapping:
         readings_plane_xy = lidar_inst.current_readings  # lidar readings on lidar plane
         # convert readings to displacement along map axes
         readings_vec_from_robot = (np.tile(lidar_plane_axes[lidar_inst.axis_from_robot[0]], (readings_plane_xy.shape[0], 1)).T*readings_plane_xy[:, 0] + np.tile(lidar_plane_axes[lidar_inst.axis_from_robot[1]], (readings_plane_xy.shape[0], 1)).T*readings_plane_xy[:, 1]).T
-        reading_disp = readings_vec_from_robot + robot_loc  # displacement from robot
+        reading_disp = readings_vec_from_robot + robot_loc  # displacement from map zero point rather than from robot
         reading_disp = reading_disp.astype(np.float32)
         reading_dist_from_robot = np.linalg.norm(readings_vec_from_robot, axis=1)  # scalar distances from robot
 
