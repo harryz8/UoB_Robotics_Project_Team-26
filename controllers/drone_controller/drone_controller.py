@@ -265,6 +265,9 @@ while robot.step(timestep) != -1:
             isPathPlanning = False
             print("Finished Path Planning")
         else:
+            x_offset = 0
+            y_offset = 0
+            yaw_offset = 0
             index_tuple = path[currentPathIndex]
     
             dist_arr = blocks_to_meters(np.array(index_tuple) - mapping_inst.origin, BLOCK_LENGTH/1000)
@@ -282,10 +285,9 @@ while robot.step(timestep) != -1:
                 print("Reached point:", path[currentPathIndex])
                 currentPathIndex += 1
             else:
-                x_offset -= diff_x * clampVal
-                y_offset += diff_y * clampVal
-                target_altitude += diff_z * clampVal
-    
+                x_offset -= clamp(diff_x, -clampVal, clampVal)
+                y_offset += clamp(diff_y, -clampVal, clampVal)
+                target_altitude += clamp(diff_z, -clampVal, clampVal)
     else:
         # ----- mappping: occupancy grid map -----
         # Update the map given readings from both LIDARs
@@ -324,12 +326,10 @@ while robot.step(timestep) != -1:
         
     # Clamp altitude to safe range
     target_altitude = clamp(target_altitude, altitude_min, altitude_max)
-
     # Apply damping
     x_offset *= key_damping
     y_offset *= key_damping
     yaw_offset *= yaw_damping
-    
     #updates target yaw to allow for user input
     target_yaw += yaw_offset * 0.05
 
@@ -360,6 +360,9 @@ while robot.step(timestep) != -1:
                    # BLOCK_LENGTH / 1000).astype(int)))
     if ord("R") in pressed_keys and not isPathPlanning:
        # print(mapping_inst.origin)
+       x_offset = 0
+       y_offset = 0
+       yaw_offset = 0
        isPathPlanning = True
        currentPathIndex = 0
        path = path_planner.get_Path(
@@ -372,12 +375,9 @@ while robot.step(timestep) != -1:
                tuple(mapping_inst.origin.astype(int)))
        print(path)
     # For debugging
-    if (prints > 0) and (loops % prints == 0):
-        pass
         # print(f"{mapping_inst.get_normalised(maximum_certainty_log_odds=10000)[:, :, 4]}\n\r\n\r")  # maximum_certainty_log_odds to be determined
         #print(mapping_inst.get(maximum_certainty_log_odds=10000).shape)
         #mapping_inst.get_visual_map(2, 3)
-    loops += 1
 
     if ord("Q") in pressed_keys:
         # Exit the loop and stop the controller
