@@ -221,22 +221,6 @@ while robot.step(timestep) != -1:
         # print(f"PF Position:{np.round(pf_position,3)} PF Orientation:{np.round(pf_orientation,3)}")
     # ---------------------------------------------------------------
 
-    # ----- mappping: occupancy grid map -----
-    # Update the map given readings from both LIDARs
-    # Using threads to speed up the process by running many operations in parallel
-    step_update_threads = []
-    step_update_threads.append(threading.Thread(target=mapping_inst.update,
-                                               args=(pf_position, np.flip(pf_orientation),
-                                                     horizontal_lidar)))
-    step_update_threads.append(threading.Thread(target=mapping_inst.update,
-                                               args=(pf_position, np.flip(pf_orientation),
-                                                     vertical_lidar)))
-    for update_thread in step_update_threads:
-        update_thread.start()
-    # wait for threads to finish - we don't want the drone moving whilst readings are being taken
-    for update_thread in step_update_threads:
-        update_thread.join()
-
     # ----- Computer Assisted User Control -----
     altitude = pf_position[2]
     roll = pf_orientation[2]
