@@ -51,14 +51,10 @@ keyboard = Keyboard()
 keyboard.enable(timestep)
 
 path_planner: Path_Planner = Path_Planner()
+
 isPathPlanning = False
 path = []
 currentPathIndex = 0
-# You should insert a getDevice-like function in order to get the
-# instance of a device of the robot. Something like:
-#  motor = robot.getDevice('motorname')
-#  ds = robot.getDevice('dsname')
-#  ds.enable(timestep)
 
 # getting all motors
 front_left_motor = robot.getDevice("front left propeller")
