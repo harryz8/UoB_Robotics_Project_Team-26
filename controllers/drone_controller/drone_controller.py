@@ -1,11 +1,12 @@
 """drone_controller controller."""
 from Ava_Drone_localization import *
-from mapping import Mapping, meters_to_blocks
+from mapping import Mapping, meters_to_blocks, blocks_to_meters
 from path_planner import Path_Planner
 from lidar import Lidar
 import numpy as np
 import math
 import threading
+from time import sleep
 
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
@@ -22,11 +23,39 @@ robot = Robot()
 # get the time step of the current world.
 timestep = int(robot.getBasicTimeStep())
 
+grid = [
+    [   
+        [1,  1,  1,  0, -1],
+        [1,  1,  0,  0, -1],
+        [1,  1,  1,  1, -1],
+        [0,  0,  1,  1,  1],
+        [-1, -1, 1,  1,  1]
+    ],
+    [   
+        [1,  1,  1,  1,  1],
+        [1,  0,  0,  1, -1],
+        [1,  1,  1,  1, -1],
+        [1,  0,  1,  1,  1],
+        [-1, -1, 1,  0,  -1]
+    ],
+    [   
+        [1,  1,  0,  0,  0],
+        [1,  1,  1,  1, -1],
+        [0,  1,  1,  1, -1],
+        [0,  0,  1,  1,  1],
+        [-1,  1,  1,  1,  1]
+    ]
+]
+
 # create keyboard instance
 keyboard = Keyboard()
 keyboard.enable(timestep)
 
 path_planner: Path_Planner = Path_Planner()
+
+isPathPlanning = False
+path = []
+currentPathIndex = 0
 
 # getting all motors
 front_left_motor = robot.getDevice("front left propeller")
@@ -193,22 +222,6 @@ while robot.step(timestep) != -1:
         # print(f"PF Position:{np.round(pf_position,3)} PF Orientation:{np.round(pf_orientation,3)}")
     # ---------------------------------------------------------------
 
-    # ----- mappping: occupancy grid map -----
-    # Update the map given readings from both LIDARs
-    # Using threads to speed up the process by running many operations in parallel
-    step_update_threads = []
-    step_update_threads.append(threading.Thread(target=mapping_inst.update,
-                                               args=(pf_position, np.flip(pf_orientation),
-                                                     horizontal_lidar)))
-    step_update_threads.append(threading.Thread(target=mapping_inst.update,
-                                               args=(pf_position, np.flip(pf_orientation),
-                                                     vertical_lidar)))
-    for update_thread in step_update_threads:
-        update_thread.start()
-    # wait for threads to finish - we don't want the drone moving whilst readings are being taken
-    for update_thread in step_update_threads:
-        update_thread.join()
-
     # ----- Computer Assisted User Control -----
     altitude = pf_position[2]
     roll = pf_orientation[2]
@@ -225,24 +238,69 @@ while robot.step(timestep) != -1:
     while k != -1:
         pressed_keys.add(k)
         k = keyboard.getKey()
+    clampVal = 0.005
+    var = 0.1
+    if isPathPlanning:
+        if currentPathIndex >= len(path):
+            isPathPlanning = False
+            print("Finished Path Planning")
+        else:
+            index_tuple = path[currentPathIndex]
+    
+            dist_arr = blocks_to_meters(np.array(index_tuple) - mapping_inst.origin, BLOCK_LENGTH/1000)
+            x,y,z = tuple(dist_arr)
+            current_x, current_y, current_z = gps.getValues()
+            print("gps meters:", gps.getValues())
+            print("block coords:", x,y,z)
+            
 
-    # Keyboard offsets
-    if ord("W") in pressed_keys:
-        x_offset += key_increment   # forward
-    if ord("S") in pressed_keys:
-        x_offset -= key_increment   # backward
-    if ord("A") in pressed_keys:
-        y_offset -= key_increment   # left
-    if ord("D") in pressed_keys:
-        y_offset += key_increment   # right
-    if Keyboard.LEFT in pressed_keys:
-        yaw_offset += yaw_increment   #rotate left
-    if Keyboard.RIGHT in pressed_keys:
-        yaw_offset -= yaw_increment    #rotate right
-    if Keyboard.UP in pressed_keys:
-        target_altitude += altitude_increment
-    if Keyboard.DOWN in pressed_keys:
-        target_altitude -= altitude_increment
+            diff_x = x - current_x
+            diff_y = y - current_y
+            diff_z = z - current_z
+            print("diff", diff_x, " ", diff_y, " ",  diff_z)
+            if abs(diff_x) < var and abs(diff_y) < var and abs(diff_z) < var:
+                print("Reached point:", path[currentPathIndex])
+                currentPathIndex += 1
+            else:
+                x_offset -= diff_x * clampVal
+                y_offset += diff_y * clampVal
+                target_altitude += diff_z * clampVal
+    
+    else:
+        # ----- mappping: occupancy grid map -----
+        # Update the map given readings from both LIDARs
+        # Using threads to speed up the process by running many operations in parallel
+        # Map only when not path planning so that the map isn't changed when it is being used.
+        step_update_threads = []
+        step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                                    args=(pf_position, np.flip(pf_orientation),
+                                                          horizontal_lidar)))
+        step_update_threads.append(threading.Thread(target=mapping_inst.update,
+                                                    args=(pf_position, np.flip(pf_orientation),
+                                                          vertical_lidar)))
+        for update_thread in step_update_threads:
+            update_thread.start()
+        # wait for threads to finish
+        for update_thread in step_update_threads:
+            update_thread.join()
+        # -----------------------------------------
+        # Keyboard offsets
+        if ord("W") in pressed_keys:
+            x_offset += key_increment   # forward
+        if ord("S") in pressed_keys:
+            x_offset -= key_increment   # backward
+        if ord("A") in pressed_keys:
+            y_offset -= key_increment   # left
+        if ord("D") in pressed_keys:
+            y_offset += key_increment   # right
+        if Keyboard.LEFT in pressed_keys:
+            yaw_offset += yaw_increment   #rotate left
+        if Keyboard.RIGHT in pressed_keys:
+            yaw_offset -= yaw_increment    #rotate right
+        if Keyboard.UP in pressed_keys:
+            target_altitude += altitude_increment
+        if Keyboard.DOWN in pressed_keys:
+            target_altitude -= altitude_increment
         
     # Clamp altitude to safe range
     target_altitude = clamp(target_altitude, altitude_min, altitude_max)
@@ -276,9 +334,23 @@ while robot.step(timestep) != -1:
     fr_input = vertical_thrust_base + vertical_input + roll_input + pitch_input + yaw_input
     rl_input = vertical_thrust_base + vertical_input - roll_input - pitch_input + yaw_input
     rr_input = vertical_thrust_base + vertical_input + roll_input - pitch_input - yaw_input
-
-    if ord("R") in pressed_keys:
-       print(path_planner.test())  
+    #If R is pressed finds the path back and blocks all other inputs until completed
+    # print(tuple(meters_to_blocks(
+                   # np.array(gps.getValues()),
+                   # BLOCK_LENGTH / 1000).astype(int)))
+    if ord("R") in pressed_keys and not isPathPlanning:
+       # print(mapping_inst.origin)
+       isPathPlanning = True
+       currentPathIndex = 0
+       path = path_planner.get_Path(
+           path_planner.shortest_path(
+               tuple((meters_to_blocks(
+                   np.array(gps.getValues()),
+                   BLOCK_LENGTH / 1000) + mapping_inst.origin).astype(int)), 
+               tuple(mapping_inst.origin.astype(int)), 
+               mapping_inst.get_normalised(1000)), 
+               tuple(mapping_inst.origin.astype(int)))
+       print(path)
 
     if ord("Q") in pressed_keys:
         # Exit the loop and stop the controller
@@ -289,8 +361,6 @@ while robot.step(timestep) != -1:
     front_right_motor.setVelocity(-fr_input)
     rear_left_motor.setVelocity(-rl_input)
     rear_right_motor.setVelocity(rr_input)
-
-# Enter here exit cleanup code.
 
 # mapping_inst.get_visual_map(1, 4)
 mapping_inst.save_map()
