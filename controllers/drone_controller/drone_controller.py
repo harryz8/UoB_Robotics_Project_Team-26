@@ -7,11 +7,10 @@ import numpy as np
 import math
 import threading
 from time import sleep
-
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
 
-BLOCK_LENGTH: float = 350  # The length of one side of the cube shaped 'block' which the world is split into in the map. In mm
+BLOCK_LENGTH: float = 500  # The length of one side of the cube shaped 'block' which the world is split into in the map. In mm
 
 #clamps values
 def clamp(value, low, high):
@@ -258,16 +257,13 @@ while robot.step(timestep) != -1:
     while k != -1:
         pressed_keys.add(k)
         k = keyboard.getKey()
-    clampVal = 0.005
+    clampVal = 0.001
     var = 0.1
     if isPathPlanning:
         if currentPathIndex >= len(path):
             isPathPlanning = False
             print("Finished Path Planning")
         else:
-            x_offset = 0
-            y_offset = 0
-            yaw_offset = 0
             index_tuple = path[currentPathIndex]
     
             dist_arr = blocks_to_meters(np.array(index_tuple) - mapping_inst.origin, BLOCK_LENGTH/1000)
