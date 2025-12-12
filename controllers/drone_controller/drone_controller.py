@@ -10,7 +10,7 @@ from time import sleep
 from controller import Robot, Motor, GPS, InertialUnit, Gyro
 from controller import Keyboard
 
-BLOCK_LENGTH: float = 500  # The length of one side of the cube shaped 'block' which the world is split into in the map. In mm
+BLOCK_LENGTH: float = 360  # The length of one side of the cube shaped 'block' which the world is split into in the map. In mm
 
 #clamps values
 def clamp(value, low, high):
@@ -222,7 +222,7 @@ while robot.step(timestep) != -1:
             resample(particles_position, weight)
         # Final state estimation
         pf_position, pf_orientation = final_estimation(particles_position, weight)
-        # print(f"PF Position:{np.round(pf_position,3)} PF Orientation:{np.round(pf_orientation,3)}")
+        print(f"PF Position:{np.round(pf_position,3)} PF Orientation:{np.round(pf_orientation,3)}")
     # ---------------------------------------------------------------
 
     # ----- Computer Assisted User Control -----
@@ -364,7 +364,7 @@ while robot.step(timestep) != -1:
         break
     if ord("M") in pressed_keys:
         # Show the map as a pyplot (for debugging)
-        mapping_inst.get_visual_map(2, 4)  # get 2D horizontal map, the 4th layer
+        mapping_inst.get_visual_map(2, meters_to_blocks(pf_position[2], BLOCK_LENGTH/1000).astype(int)+mapping_inst.origin[2])  # get 2D horizontal map
     
      # Apply velocities
     front_left_motor.setVelocity(fl_input)
